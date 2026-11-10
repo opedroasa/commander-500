@@ -15,7 +15,11 @@ src/Commander500.Api/        ASP.NET Core (.NET 9) minimal APIs + EF Core/Npgsql
   Data/                      AppDbContext, DbSeeder, Migrations/
   Infrastructure/            ErrorHandler (exceção → ProblemDetails), conversão de URI postgres://
 tests/Commander500.Tests/    xUnit, só testa Domain/Services (grafo em memória via RoundBuilder)
-web/                         (fase 2) React + Vite + TS + Tailwind
+web/                         React 19 + Vite + TS + Tailwind v4, mobile-first
+  src/api/                   client.ts (fetch + JWT), types.ts (espelha Contracts/Dtos.cs), hooks.ts (TanStack Query)
+  src/components/            TableView (desenho da mesa), Countdown (timer), RoundBoard, Layout, ui.tsx
+  src/pages/public/          Temporadas, Detalhe (ranking/comandantes/rodadas), Ao vivo, Rodada
+  src/pages/admin/           Login, Rodadas, Condução da rodada, Jogadores, Decks, Comandantes, Temporadas
 docker-compose.yml           Postgres local (+ perfil "api" opcional)
 Dockerfile                   imagem da API (contexto = raiz do repo)
 ```
@@ -31,6 +35,17 @@ dotnet ef migrations add <Nome> --project src/Commander500.Api --output-dir Data
 docker compose --profile api up --build        # API + banco em Docker (porta 8080)
 docker compose down -v                         # zera o banco local
 ```
+
+Frontend (pasta `web/`, precisa da API rodando em :5080 — o Vite faz proxy de `/api`):
+
+```bash
+npm install --prefix web
+npm run dev --prefix web                       # http://localhost:5173
+npm run build --prefix web                     # tsc -b + vite build → web/dist
+npm run lint --prefix web                      # oxlint
+```
+
+`VITE_API_URL` (ver `web/.env.example`) fica vazio em dev; em produção é a origem da API.
 
 `dotnet ef` é ferramenta local (`.config/dotnet-tools.json`); rode `dotnet tool restore` numa máquina nova.
 Swagger: `/swagger`. Health: `/health`. Admin de dev: `admin@fantasystore.local` / `admin123`.
