@@ -22,6 +22,8 @@ web/                         React 19 + Vite + TS + Tailwind v4, mobile-first
   src/pages/admin/           Login, Rodadas, Condução da rodada, Jogadores, Decks, Comandantes, Temporadas
 docker-compose.yml           Postgres local (+ perfil "api" opcional)
 Dockerfile                   imagem da API (contexto = raiz do repo)
+scripts/dev.ps1, dev.sh      sobe banco + API + site com um comando (guia completo no README.md)
+render.yaml, web/vercel.json, docs/DEPLOY.md   publicação (Render + Neon + Vercel) — preparada, ainda não usada
 ```
 
 ## Comandos
@@ -56,10 +58,10 @@ Swagger: `/swagger`. Health: `/health`. Admin de dev: `admin@fantasystore.local`
 |---|---|
 | `ConnectionStrings__Default` ou `DATABASE_URL` | aceita `Host=...` ou `postgres://user:pass@host/db?sslmode=require` |
 | `Jwt__Key` | obrigatório, ≥ 32 caracteres (a API não sobe sem) |
-| `Admin__Email`, `Admin__Password` | cria o admin no startup se não existir |
+| `Admin__Email`, `Admin__Password` | cria o admin no startup se não existir; se existir e a senha mudou, atualiza |
 | `Cors__AllowedOrigins` | lista separada por vírgula (`*` libera tudo) |
 | `Database__MigrateOnStartup` | padrão `true` |
-| `Seed__DemoData` | `true` cria 1 temporada + 10 jogadores/decks se não houver temporadas |
+| `Seed__DemoData` | `true` cria 1 temporada + 10 jogadores/decks + 3 rodadas encerradas se não houver temporadas |
 | `Swagger__Enabled` | padrão `true` |
 | `PORT` | se definido (Render), a API escuta nessa porta |
 

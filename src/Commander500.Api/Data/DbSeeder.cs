@@ -1,4 +1,5 @@
 using Commander500.Api.Domain;
+using Commander500.Api.Domain.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -6,7 +7,7 @@ namespace Commander500.Api.Data;
 
 /// <summary>
 /// Startup seed. The admin comes from config (Admin__Email / Admin__Password env vars) and is created
-/// only if it does not exist yet. Demo data (1 season, 10 players with decks) only when Seed:DemoData=true
+/// only if it does not exist yet. Demo data (1 season, 10 players with decks, 3 closed rounds) only when Seed:DemoData=true
 /// and the database has no seasons.
 /// </summary>
 public static class DbSeeder
@@ -22,13 +23,21 @@ public static class DbSeeder
         var password = config["Admin:Password"];
         if (!string.IsNullOrEmpty(email) && !string.IsNullOrEmpty(password))
         {
-            if (!await db.AdminUsers.AnyAsync(u => u.Email == email))
+            var admin = await db.AdminUsers.FirstOrDefaultAsync(u => u.Email == email);
+            if (admin is null)
             {
-                var admin = new AdminUser { Email = email };
+                admin = new AdminUser { Email = email };
                 admin.PasswordHash = hasher.HashPassword(admin, password);
                 db.AdminUsers.Add(admin);
                 await db.SaveChangesAsync();
                 logger.LogInformation("Admin {Email} criado.", email);
+            }
+            else if (hasher.VerifyHashedPassword(admin, admin.PasswordHash, password) == PasswordVerificationResult.Failed)
+            {
+                // The env var is the source of truth: changing Admin__Password and restarting rotates the password.
+                admin.PasswordHash = hasher.HashPassword(admin, password);
+                await db.SaveChangesAsync();
+                logger.LogInformation("Senha do admin {Email} atualizada a partir da configuração.", email);
             }
         }
         else if (!await db.AdminUsers.AnyAsync())
@@ -45,12 +54,13 @@ public static class DbSeeder
 
     private static async Task SeedDemoAsync(AppDbContext db, DateTime now)
     {
-        db.Seasons.Add(new Season
+        var season = new Season
         {
             Name = "Temporada 1",
-            StartDate = DateOnly.FromDateTime(now),
+            StartDate = DateOnly.FromDateTime(now.AddDays(-21)),
             IsActive = true,
-        });
+        };
+        db.Seasons.Add(season);
 
         var commanders = new Dictionary<string, Commander>();
         Commander Cmd(string name)
@@ -94,5 +104,42 @@ public static class DbSeeder
         }
 
         await db.SaveChangesAsync();
+        await SeedDemoRoundsAsync(db, season, now);
+    }
+
+    /// <summary>
+    /// Three closed weekly rounds played through the real domain workflow (draw with bye priority,
+    /// results, close), so the ranking, commander stats and history have data. Deterministic RNG.
+    /// </summary>
+    private static async Task SeedDemoRoundsAsync(AppDbContext db, Season season, DateTime now)
+    {
+        var rng = new SeededRandomSource(500);
+        var players = await db.Players.Include(p => p.Decks).OrderBy(p => p.Id).ToListAsync();
+        var rounds = new List<Round>();
+
+        for (var number = 1; number <= 3; number++)
+        {
+            var date = season.StartDate.AddDays(7 * (number - 1));
+            var startedAt = date.ToDateTime(new TimeOnly(22, 0), DateTimeKind.Utc); // 19h em Brasília
+
+            // Round 2 has one absentee, so it gets 1 bye instead of 2.
+            var present = number == 2 ? players.Where(p => p != players[^1]).ToList() : players;
+            var round = new Round { Season = season, SeasonId = season.Id, Number = number, Date = date, DurationMinutes = season.DefaultRoundMinutes };
+            RoundWorkflow.SetEntries(round, present.Select(p => new EntryInput(p.Id, p.Decks.OrderBy(d => d.Id).First().Id)).ToList());
+            RoundWorkflow.Draw(round, RoundWorkflow.CountPreviousByes(rounds, excludingRoundId: -1), rng);
+            RoundWorkflow.Start(round, startedAt);
+            db.Rounds.Add(round);
+            await db.SaveChangesAsync(); // assigns entry ids used by the results
+
+            foreach (var table in round.Tables)
+            {
+                var pick = rng.Next(5); // 0..3 = winner's seat, 4 = draw
+                var winner = pick < 4 ? table.Seats.OrderBy(s => s.Seat).ElementAt(pick).RoundEntry!.Id : (int?)null;
+                RoundWorkflow.SetResult(round, table, winner is null ? TableResult.Draw : TableResult.Win, winner, startedAt.AddMinutes(55), "seed");
+            }
+            RoundWorkflow.Close(round, startedAt.AddMinutes(60));
+            await db.SaveChangesAsync();
+            rounds.Add(round);
+        }
     }
 }

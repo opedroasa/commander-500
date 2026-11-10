@@ -21,7 +21,8 @@ if (Environment.GetEnvironmentVariable("PORT") is { Length: > 0 } port)
     builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 // ---- Database
-var connectionString = config.GetConnectionString("Default") ?? Environment.GetEnvironmentVariable("DATABASE_URL")
+var connectionString = new[] { config.GetConnectionString("Default"), Environment.GetEnvironmentVariable("DATABASE_URL") }
+    .FirstOrDefault(s => !string.IsNullOrWhiteSpace(s))
     ?? throw new InvalidOperationException("Connection string ausente: defina ConnectionStrings__Default (ou DATABASE_URL).");
 builder.Services.AddDbContext<AppDbContext>(o => o.UseNpgsql(ConnectionStrings.Normalize(connectionString)));
 
