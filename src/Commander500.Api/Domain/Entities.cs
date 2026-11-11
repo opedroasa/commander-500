@@ -34,6 +34,7 @@ public class Season
     public string Tiebreakers { get; set; } = "Wins,FewerMatches";
 
     public List<Round> Rounds { get; set; } = [];
+    public List<Stage> Stages { get; set; } = [];
 
     public int ByePoints(int byeCount) => byeCount switch
     {
@@ -76,6 +77,17 @@ public class Commander
     public string Name { get; set; } = "";
     /// <summary>Unique key, see <see cref="CommanderName.Normalize"/>.</summary>
     public string NormalizedName { get; set; } = "";
+
+    // Card data cached from Scryfall (null when typed by hand / Scryfall unavailable; filled later by the enrichment job).
+    public Guid? ScryfallId { get; set; }
+    /// <summary>Cropped artwork (banners, thumbnails).</summary>
+    public string? ArtUrl { get; set; }
+    /// <summary>Full card image.</summary>
+    public string? ImageUrl { get; set; }
+    /// <summary>Color identity letters in WUBRG order, e.g. "WUB". Empty = colorless.</summary>
+    public string? ColorIdentity { get; set; }
+    /// <summary>Last Scryfall lookup attempt, to avoid retrying unknown names on every startup.</summary>
+    public DateTime? ScryfallCheckedAt { get; set; }
 }
 
 public class Deck
@@ -99,12 +111,31 @@ public class DeckCommander
     public Commander? Commander { get; set; }
 }
 
+/// <summary>
+/// Etapa: one league day inside a season, with one or more rounds. Has its own ranking and prize
+/// (see <see cref="Services.StageRankingCalculator"/>). Created automatically by the round date.
+/// </summary>
+public class Stage
+{
+    public int Id { get; set; }
+    public int SeasonId { get; set; }
+    public Season? Season { get; set; }
+    /// <summary>1, 2, 3… in date order within the season.</summary>
+    public int Number { get; set; }
+    public DateOnly Date { get; set; }
+    public List<Round> Rounds { get; set; } = [];
+}
+
 public class Round
 {
     public int Id { get; set; }
     public int SeasonId { get; set; }
     public Season? Season { get; set; }
+    public int StageId { get; set; }
+    public Stage? Stage { get; set; }
+    /// <summary>Sequential within the season (1, 2, 3…). The position inside the stage is derived.</summary>
     public int Number { get; set; }
+    /// <summary>Same as the stage date (kept for queries/history).</summary>
     public DateOnly Date { get; set; }
     public RoundStatus Status { get; set; } = RoundStatus.Draft;
     public DateTime? StartedAt { get; set; }

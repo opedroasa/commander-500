@@ -12,17 +12,17 @@ public class SeasonService(AppDbContext db, TimeProvider clock)
     {
         var rows = await db.Seasons.AsNoTracking()
             .OrderByDescending(s => s.IsActive).ThenByDescending(s => s.StartDate).ThenByDescending(s => s.Id)
-            .Select(s => new { Season = s, Count = s.Rounds.Count })
+            .Select(s => new { Season = s, Count = s.Rounds.Count, Stages = s.Stages.Count })
             .ToListAsync();
-        return rows.Select(r => r.Season.ToDto(r.Count)).ToList();
+        return rows.Select(r => r.Season.ToDto(r.Count, r.Stages)).ToList();
     }
 
     public async Task<SeasonDto> Get(int id)
     {
         var row = await db.Seasons.AsNoTracking().Where(s => s.Id == id)
-            .Select(s => new { Season = s, Count = s.Rounds.Count }).FirstOrDefaultAsync()
+            .Select(s => new { Season = s, Count = s.Rounds.Count, Stages = s.Stages.Count }).FirstOrDefaultAsync()
             ?? throw new NotFoundException($"Temporada {id} não encontrada.");
-        return row.Season.ToDto(row.Count);
+        return row.Season.ToDto(row.Count, row.Stages);
     }
 
     public async Task<SeasonDto> Create(SeasonUpsertRequest req)
@@ -87,22 +87,11 @@ public class SeasonService(AppDbContext db, TimeProvider clock)
         return RankingCalculator.Calculate(season, rounds, names);
     }
 
-    public async Task<IReadOnlyList<CommanderStatsRow>> Commanders(int id)
-    {
-        var season = await FindNoTracking(id);
-        var rounds = await db.Rounds.AsNoTracking()
-            .Where(r => r.SeasonId == id && r.Status == RoundStatus.Closed)
-            .Include(r => r.Entries).ThenInclude(e => e.Deck).ThenInclude(d => d!.Commanders).ThenInclude(dc => dc.Commander)
-            .Include(r => r.Tables).ThenInclude(t => t.Seats)
-            .AsSplitQuery().ToListAsync();
-        return CommanderStatsCalculator.Calculate(rounds, season.MinMatchesForCommanderWinRate);
-    }
-
     public async Task<IReadOnlyList<RoundDto>> Rounds(int id)
     {
         await FindNoTracking(id);
         var now = clock.GetUtcNow().UtcDateTime;
-        var rounds = await RoundService.WithGraph(db.Rounds.AsNoTracking())
+        var rounds = await RoundService.WithGraph(db.Rounds.AsNoTrackingWithIdentityResolution())
             .Where(r => r.SeasonId == id).OrderByDescending(r => r.Number).ToListAsync();
         return rounds.Select(r => r.ToDto(now)).ToList();
     }

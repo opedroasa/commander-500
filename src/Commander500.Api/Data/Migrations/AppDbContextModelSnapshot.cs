@@ -55,6 +55,18 @@ namespace Commander500.Api.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("ArtUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("ColorIdentity")
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -65,10 +77,20 @@ namespace Commander500.Api.Data.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<DateTime?>("ScryfallCheckedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ScryfallId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("NormalizedName")
                         .IsUnique();
+
+                    b.HasIndex("ScryfallId")
+                        .IsUnique()
+                        .HasFilter("\"ScryfallId\" IS NOT NULL");
 
                     b.ToTable("Commanders");
                 });
@@ -217,6 +239,9 @@ namespace Commander500.Api.Data.Migrations
                     b.Property<int>("SeasonId")
                         .HasColumnType("integer");
 
+                    b.Property<int>("StageId")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime?>("StartedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -226,6 +251,8 @@ namespace Commander500.Api.Data.Migrations
                         .HasColumnType("character varying(20)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("StageId");
 
                     b.HasIndex("SeasonId", "Number")
                         .IsUnique();
@@ -324,6 +351,33 @@ namespace Commander500.Api.Data.Migrations
                     b.ToTable("Seasons");
                 });
 
+            modelBuilder.Entity("Commander500.Api.Domain.Stage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<int>("Number")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SeasonId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SeasonId", "Date")
+                        .IsUnique();
+
+                    b.HasIndex("SeasonId", "Number");
+
+                    b.ToTable("Stages");
+                });
+
             modelBuilder.Entity("Commander500.Api.Domain.TableSeat", b =>
                 {
                     b.Property<int>("TableId")
@@ -404,7 +458,15 @@ namespace Commander500.Api.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Commander500.Api.Domain.Stage", "Stage")
+                        .WithMany("Rounds")
+                        .HasForeignKey("StageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Season");
+
+                    b.Navigation("Stage");
                 });
 
             modelBuilder.Entity("Commander500.Api.Domain.RoundEntry", b =>
@@ -432,6 +494,17 @@ namespace Commander500.Api.Data.Migrations
                     b.Navigation("Player");
 
                     b.Navigation("Round");
+                });
+
+            modelBuilder.Entity("Commander500.Api.Domain.Stage", b =>
+                {
+                    b.HasOne("Commander500.Api.Domain.Season", "Season")
+                        .WithMany("Stages")
+                        .HasForeignKey("SeasonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Season");
                 });
 
             modelBuilder.Entity("Commander500.Api.Domain.TableSeat", b =>
@@ -476,6 +549,13 @@ namespace Commander500.Api.Data.Migrations
                 });
 
             modelBuilder.Entity("Commander500.Api.Domain.Season", b =>
+                {
+                    b.Navigation("Rounds");
+
+                    b.Navigation("Stages");
+                });
+
+            modelBuilder.Entity("Commander500.Api.Domain.Stage", b =>
                 {
                     b.Navigation("Rounds");
                 });

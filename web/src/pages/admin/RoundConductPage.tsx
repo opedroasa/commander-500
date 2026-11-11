@@ -33,7 +33,7 @@ export function RoundConductPage() {
   const canDelete = r.status === 'Draft' || r.status === 'Drawn'
 
   async function remove() {
-    if (!confirm(`Excluir a rodada ${r.number}? Os presentes e o sorteio serão perdidos.`)) return
+    if (!confirm(`Excluir a rodada ${r.numberInStage} da etapa ${r.stageNumber}? Os presentes e o sorteio serão perdidos.`)) return
     await del.mutateAsync(r.id)
     navigate('/admin')
   }
@@ -41,7 +41,7 @@ export function RoundConductPage() {
   return (
     <>
       <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h1 className="font-display text-2xl font-bold text-amber-100">Rodada {r.number}</h1>
+        <h1 className="font-display text-2xl font-bold text-amber-100">Etapa {r.stageNumber} · Rodada {r.numberInStage}</h1>
         <RoundStatusBadge status={r.status} />
         <span className="text-sm text-zinc-400">{r.seasonName} · {formatDate(r.date)}</span>
         <div className="ml-auto flex gap-2">
@@ -146,6 +146,12 @@ function EntriesEditor({ round, onDone, onCancel }: { round: Round; onDone: () =
             Salvar alterações desfaz o sorteio atual — será preciso sortear de novo.
           </p>
         )}
+        {round.status === 'Draft' && round.numberInStage > 1 && (
+          <p className="w-full rounded-lg border border-sky-900 bg-sky-950/40 p-2 text-xs text-sky-200">
+            Presentes e decks copiados da rodada anterior desta etapa. Desmarque quem foi embora — os resultados
+            dele nas rodadas anteriores continuam valendo para a etapa. O sorteio evita repetir adversários e cadeiras.
+          </p>
+        )}
       </div>
       <div className="relative mb-3">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500" aria-hidden />
@@ -247,6 +253,12 @@ function DrawnStep({ round, onEditEntries }: { round: Round; onEditEntries: () =
 
       {warnings.length > 0 && <DeckWarnings names={warnings.map((w) => `${w.playerName} (${deckStatusLabel[w.deckStatus].toLowerCase()})`)} />}
 
+      {round.numberInStage > 1 && (
+        <p className="text-xs text-zinc-400">
+          Sorteio montado para evitar adversários e cadeiras das rodadas anteriores desta etapa (quando o número de jogadores permite).
+        </p>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {round.tables.map((t) => (
           <section key={t.id} className="card p-3" aria-label={`Mesa ${t.number}`}><TableView table={t} /></section>
@@ -274,7 +286,7 @@ function PlayStep({ round }: { round: Round }) {
   const isClosed = round.status === 'Closed'
 
   async function closeRound() {
-    if (confirm(`Encerrar a rodada ${round.number}? Os pontos entram no ranking.`)) await close.mutateAsync(round.id)
+    if (confirm(`Encerrar a rodada ${round.numberInStage} da etapa ${round.stageNumber}? Os pontos entram no ranking.`)) await close.mutateAsync(round.id)
   }
 
   return (

@@ -1,8 +1,8 @@
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
-import { Link } from 'react-router'
 import { useDeletePlayer, usePlayers, useSavePlayer } from '../../api/hooks'
 import type { Player } from '../../api/types'
+import { PlayerProfileModal } from '../../components/PlayerProfileModal'
 import { Empty, ErrorBox, Field, InlineError, Modal, PageHeader, Spinner } from '../../components/ui'
 import { searchKey } from '../../lib/format'
 
@@ -12,6 +12,7 @@ export function PlayersPage() {
   const [editing, setEditing] = useState<Player | 'new' | null>(null)
   const [query, setQuery] = useState('')
   const [showInactive, setShowInactive] = useState(false)
+  const [profileId, setProfileId] = useState<number | null>(null)
 
   if (players.isPending) return <Spinner />
   if (players.error) return <ErrorBox error={players.error} onRetry={() => players.refetch()} />
@@ -42,23 +43,25 @@ export function PlayersPage() {
       {list.length === 0 && <Empty>Nenhum jogador.</Empty>}
       <ul className="space-y-1.5">
         {list.map((p) => (
-          <li key={p.id} className={`card flex items-center gap-3 p-3 ${p.isActive ? '' : 'opacity-60'}`}>
-            <div className="min-w-0 flex-1">
+          <li key={p.id} className={`card flex items-center gap-3 p-1.5 pl-3 ${p.isActive ? '' : 'opacity-60'}`}>
+            <button className="min-w-0 flex-1 rounded-lg py-1.5 text-left hover:text-amber-300" onClick={() => setProfileId(p.id)}
+              aria-label={`Abrir perfil de ${p.name}`}>
               <div className="truncate font-medium">
                 {p.name}
                 {p.nickname && <span className="text-zinc-400"> ({p.nickname})</span>}
                 {!p.isActive && <span className="ml-2 rounded bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-400">inativo</span>}
               </div>
-              <Link to={`/admin/decks?jogador=${p.id}`} className="text-xs text-zinc-400 hover:text-amber-300">
-                {p.deckCount} deck{p.deckCount === 1 ? '' : 's'}
-              </Link>
-            </div>
+              <div className="text-xs text-zinc-400">
+                {p.deckCount} deck{p.deckCount === 1 ? '' : 's'} · ver perfil e decks
+              </div>
+            </button>
             <button className="btn-ghost btn-sm" onClick={() => setEditing(p)} aria-label={`Editar ${p.name}`}><Pencil className="size-4" /></button>
             <button className="btn-ghost btn-sm text-red-300" onClick={() => remove(p)} aria-label={`Excluir ${p.name}`}><Trash2 className="size-4" /></button>
           </li>
         ))}
       </ul>
       <PlayerModal key={`player-${editing === 'new' ? 'new' : editing?.id ?? 'none'}`} player={editing} onClose={() => setEditing(null)} />
+      <PlayerProfileModal playerId={profileId} admin onClose={() => setProfileId(null)} />
     </>
   )
 }

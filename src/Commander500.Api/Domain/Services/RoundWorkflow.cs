@@ -2,6 +2,34 @@ namespace Commander500.Api.Domain.Services;
 
 public record EntryInput(int PlayerId, int DeckId);
 
+/// <summary>Who already sat together in a stage, and each player's seat in the most recent round.</summary>
+public record StageHistory(IReadOnlyDictionary<(int, int), int> Pairs, IReadOnlyDictionary<int, int> LastSeat)
+{
+    public static StageHistory From(IEnumerable<Round> rounds)
+    {
+        var pairs = new Dictionary<(int, int), int>();
+        var lastSeat = new Dictionary<int, int>();
+        foreach (var round in rounds.Where(r => r.Status != RoundStatus.Draft).OrderBy(r => r.Number))
+        {
+            var byId = round.Entries.ToDictionary(e => e.Id);
+            foreach (var table in round.Tables)
+            {
+                var seated = table.Seats
+                    .Select(s => (Player: (s.RoundEntry ?? byId[s.RoundEntryId]).PlayerId, s.Seat))
+                    .ToList();
+                foreach (var (player, seat) in seated) lastSeat[player] = seat; // later rounds overwrite
+                for (var i = 0; i < seated.Count; i++)
+                    for (var j = i + 1; j < seated.Count; j++)
+                    {
+                        var key = TableDrawer.PairKey(seated[i].Player, seated[j].Player);
+                        pairs[key] = pairs.GetValueOrDefault(key) + 1;
+                    }
+            }
+        }
+        return new StageHistory(pairs, lastSeat);
+    }
+}
+
 public record RoundTimer(DateTime StartedAt, int DurationMinutes, DateTime EndsAt, int RemainingSeconds, bool Expired);
 
 /// <summary>Round state machine (spec 4.6). Operates on an in-memory entity graph; persistence is the caller's job.</summary>
@@ -32,15 +60,30 @@ public static class RoundWorkflow
 
     /// <summary>Draws (or re-draws) tables and byes. Allowed in Draft/Drawn (i.e. before the timer starts).</summary>
     /// <param name="previousByesByPlayer">Byes each player already had in the season (other rounds).</param>
-    public static void Draw(Round round, IReadOnlyDictionary<int, int> previousByesByPlayer, IRandomSource rng)
+    /// <param name="earlierStageRounds">
+    /// Other drawn rounds of the same stage (etapa). The draw avoids putting players who already shared a table
+    /// together again and avoids repeating each player's seat from the most recent of them.
+    /// </param>
+    public static void Draw(Round round, IReadOnlyDictionary<int, int> previousByesByPlayer, IRandomSource rng,
+        IEnumerable<Round>? earlierStageRounds = null)
     {
         EnsureStatus(round, "sortear", RoundStatus.Draft, RoundStatus.Drawn);
 
         var entries = round.Entries;
+        var history = StageHistory.From(earlierStageRounds ?? []);
         var candidates = entries
-            .Select((e, i) => new DrawCandidate(i, previousByesByPlayer.GetValueOrDefault(e.PlayerId)))
+            .Select((e, i) => new DrawCandidate(i, previousByesByPlayer.GetValueOrDefault(e.PlayerId),
+                history.LastSeat.TryGetValue(e.PlayerId, out var seat) ? seat : null))
             .ToList();
-        var result = TableDrawer.Draw(candidates, rng);
+
+        // Translate player-id pairs into candidate-key pairs.
+        var keyOf = entries.Select((e, i) => (e.PlayerId, i)).ToDictionary(x => x.PlayerId, x => x.i);
+        var pairs = new Dictionary<(int, int), int>();
+        foreach (var ((a, b), count) in history.Pairs)
+            if (keyOf.TryGetValue(a, out var ka) && keyOf.TryGetValue(b, out var kb))
+                pairs[TableDrawer.PairKey(ka, kb)] = count;
+
+        var result = TableDrawer.Draw(candidates, rng, pairs);
 
         ClearDraw(round);
         foreach (var key in result.ByeKeys) entries[key].IsBye = true;
