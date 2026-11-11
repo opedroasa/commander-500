@@ -7,6 +7,7 @@ using Commander500.Api.Domain;
 using Commander500.Api.Domain.Services;
 using Commander500.Api.Endpoints;
 using Commander500.Api.Infrastructure;
+using Commander500.Api.Infrastructure.Scryfall;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -33,7 +34,20 @@ builder.Services.AddSingleton<IPasswordHasher<AdminUser>, PasswordHasher<AdminUs
 builder.Services.AddScoped<SeasonService>();
 builder.Services.AddScoped<RoundService>();
 builder.Services.AddScoped<CatalogService>();
+builder.Services.AddScoped<StatsService>();
 builder.Services.AddScoped<AuthService>();
+
+// ---- Scryfall (commander names, art and colors). Free public API, no key.
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient<IScryfallClient, ScryfallClient>(c =>
+{
+    c.BaseAddress = new Uri(ScryfallClient.BaseAddress);
+    c.Timeout = TimeSpan.FromSeconds(10);
+    c.DefaultRequestHeaders.UserAgent.ParseAdd(ScryfallClient.UserAgent);
+    c.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+});
+if (config.GetValue("Scryfall:Enabled", true))
+    builder.Services.AddHostedService<ScryfallEnrichmentService>();
 
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddProblemDetails();
@@ -97,6 +111,8 @@ if (config.GetValue("Swagger:Enabled", true))
 {
     app.UseSwagger();
     app.UseSwaggerUI(o => o.DocumentTitle = "Commander 500 API");
+    // Opening the API root (http://localhost:5080) goes straight to the docs.
+    app.MapGet("/", () => Results.Redirect("/swagger")).ExcludeFromDescription();
 }
 
 app.MapPublicEndpoints();

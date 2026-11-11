@@ -15,6 +15,7 @@ public class ErrorHandler(IProblemDetailsService problems, ILogger<ErrorHandler>
         {
             ValidationException v => (400, "Dados inválidos", v.Message),
             NotFoundException n => (404, "Não encontrado", n.Message),
+            ServiceUnavailableException s => (503, "Serviço indisponível", s.Message),
             DomainException d => (409, "Operação não permitida", d.Message),
             BadHttpRequestException b => (400, "Requisição inválida", b.Message),
             DbUpdateException { InnerException: PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } } =>

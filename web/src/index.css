@@ -1,8 +1,109 @@
 @import "tailwindcss";
 
+/*
+ * Identidade visual Fantasy Store: azul-marinho, laranja e vermelho da logo.
+ *
+ * As telas usam as escalas `zinc` (superfícies/texto) e `amber` (destaque) do Tailwind.
+ * Aqui elas são redefinidas: `zinc` vira azul-marinho e `amber` vira o laranja da logo.
+ * O tema claro (html[data-theme="light"]) inverte as escalas (950 ↔ 50), então os mesmos
+ * componentes funcionam nos dois temas sem classes duplicadas.
+ */
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-display: "Cinzel", ui-serif, Georgia, serif;
+
+  /* Azul-marinho (tema escuro) */
+  --color-zinc-50: #f4f6fb;
+  --color-zinc-100: #e6eaf3;
+  --color-zinc-200: #ccd4e4;
+  --color-zinc-300: #a9b5cd;
+  --color-zinc-400: #8b99b8;
+  --color-zinc-500: #63739a;
+  --color-zinc-600: #43527a;
+  --color-zinc-700: #2d3c63;
+  --color-zinc-800: #1d2a4d;
+  --color-zinc-900: #121c38;
+  --color-zinc-950: #0a1128;
+
+  /* Laranja Fantasy Store (#F26522 = 500) */
+  --color-amber-50: #fff4ec;
+  --color-amber-100: #ffe6d3;
+  --color-amber-200: #ffc9a5;
+  --color-amber-300: #ffa56d;
+  --color-amber-400: #ff8540;
+  --color-amber-500: #f26522;
+  --color-amber-600: #d84f12;
+  --color-amber-700: #b33d10;
+  --color-amber-800: #8e3214;
+  --color-amber-900: #722b14;
+  --color-amber-950: #3e1407;
+
+  /* Cores fixas (não invertem): logo e mesa de jogo */
+  --color-brand-red: #e53935;
+  --color-brand-orange: #f26522;
+  --color-brand-navy: #13235a;
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+
+  --color-zinc-50: #0a1128;
+  --color-zinc-100: #121c38;
+  --color-zinc-200: #1d2a4d;
+  --color-zinc-300: #34426a;
+  --color-zinc-400: #4b5a80;
+  --color-zinc-500: #67769a;
+  --color-zinc-600: #94a0bd;
+  --color-zinc-700: #c3cbdc;
+  --color-zinc-800: #dfe4ee;
+  --color-zinc-900: #ffffff;
+  --color-zinc-950: #f3f5fa;
+
+  --color-amber-50: #3e1407;
+  --color-amber-100: #13235a; /* títulos: azul-marinho da logo */
+  --color-amber-200: #c2410c;
+  --color-amber-300: #b33d10;
+  --color-amber-400: #d84f12;
+  --color-amber-500: #f26522;
+  --color-amber-600: #ff8540;
+  --color-amber-700: #ffa56d;
+  --color-amber-800: #ffc9a5;
+  --color-amber-900: #ffe6d3;
+  --color-amber-950: #fff4ec;
+
+  --color-red-50:  oklch(25.8% 0.092 26.042);
+  --color-red-100:  oklch(39.6% 0.141 25.723);
+  --color-red-200:  oklch(44.4% 0.177 26.899);
+  --color-red-300:  oklch(50.5% 0.213 27.518);
+  --color-red-400:  oklch(57.7% 0.245 27.325);
+  --color-red-500:  oklch(63.7% 0.237 25.331);
+  --color-red-600:  oklch(70.4% 0.191 22.216);
+  --color-red-700:  oklch(80.8% 0.114 19.571);
+  --color-red-800:  oklch(88.5% 0.062 18.334);
+  --color-red-900:  oklch(93.6% 0.032 17.717);
+  --color-red-950:  oklch(97.1% 0.013 17.38);
+  --color-emerald-50:  oklch(26.2% 0.051 172.552);
+  --color-emerald-100:  oklch(37.8% 0.077 168.94);
+  --color-emerald-200:  oklch(43.2% 0.095 166.913);
+  --color-emerald-300:  oklch(50.8% 0.118 165.612);
+  --color-emerald-400:  oklch(59.6% 0.145 163.225);
+  --color-emerald-500:  oklch(69.6% 0.17 162.48);
+  --color-emerald-600:  oklch(76.5% 0.177 163.223);
+  --color-emerald-700:  oklch(84.5% 0.143 164.978);
+  --color-emerald-800:  oklch(90.5% 0.093 164.15);
+  --color-emerald-900:  oklch(95% 0.052 163.051);
+  --color-emerald-950:  oklch(97.9% 0.021 166.113);
+  --color-sky-50:  oklch(29.3% 0.066 243.157);
+  --color-sky-100:  oklch(39.1% 0.09 240.876);
+  --color-sky-200:  oklch(44.3% 0.11 240.79);
+  --color-sky-300:  oklch(50% 0.134 242.749);
+  --color-sky-400:  oklch(58.8% 0.158 241.966);
+  --color-sky-500:  oklch(68.5% 0.169 237.323);
+  --color-sky-600:  oklch(74.6% 0.16 232.661);
+  --color-sky-700:  oklch(82.8% 0.111 230.318);
+  --color-sky-800:  oklch(90.1% 0.058 230.902);
+  --color-sky-900:  oklch(95.1% 0.026 236.824);
+  --color-sky-950:  oklch(97.7% 0.013 236.62);
 }
 
 @layer base {
@@ -30,7 +131,8 @@
   @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition
     disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400;
 }
-@utility btn-primary { @apply btn bg-amber-500 text-zinc-950 hover:bg-amber-400; }
+/* Botão principal: laranja da logo com texto branco nos dois temas. */
+@utility btn-primary { @apply btn bg-brand-orange text-white hover:brightness-110; }
 @utility btn-secondary { @apply btn border border-zinc-700 bg-zinc-900 text-zinc-100 hover:bg-zinc-800; }
 @utility btn-danger { @apply btn border border-red-900 bg-red-950/60 text-red-200 hover:bg-red-900/60; }
 @utility btn-ghost { @apply btn text-zinc-300 hover:bg-zinc-800; }

@@ -1,8 +1,10 @@
 import { Check, ExternalLink, Pencil, Plus, Trash2, X } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
 import { useSearchParams } from 'react-router'
-import { useCommanders, useDecks, useDeleteDeck, usePlayers, useReviewDeck, useSaveDeck } from '../../api/hooks'
+import { useDecks, useDeleteDeck, usePlayers, useReviewDeck } from '../../api/hooks'
 import type { Deck, DeckStatus } from '../../api/types'
+import { CommanderArt } from '../../components/CommanderArt'
+import { DeckFormModal } from '../../components/DeckFormModal'
 import { DeckStatusBadge, Empty, ErrorBox, Field, InlineError, Modal, PageHeader, Spinner } from '../../components/ui'
 import { deckStatusLabel, playerLabel, searchKey } from '../../lib/format'
 
@@ -64,6 +66,7 @@ export function DecksPage() {
         {list.map((d) => (
           <li key={d.id} className="card p-3">
             <div className="flex flex-wrap items-start gap-x-3 gap-y-1">
+              <CommanderArt commanders={d.commanders} className="h-14 w-16 shrink-0" rounded="rounded-lg" />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-semibold">{d.name}</span>
@@ -87,71 +90,17 @@ export function DecksPage() {
           </li>
         ))}
       </ul>
-      <DeckModal
-        key={`deck-${editing === 'new' ? `new-${playerFilter}` : editing?.id ?? 'none'}`}
-        deck={editing}
-        defaultPlayerId={playerFilter}
-        onClose={() => setEditing(null)}
-      />
+      {editing !== null && (
+        <DeckFormModal
+          key={`deck-${editing === 'new' ? `new-${playerFilter}` : editing.id}`}
+          open
+          deck={editing === 'new' ? null : editing}
+          playerId={editing === 'new' && playerFilter ? playerFilter : undefined}
+          onClose={() => setEditing(null)}
+        />
+      )}
       <ReviewModal key={`review-${reviewing?.id ?? 'none'}`} deck={reviewing} onClose={() => setReviewing(null)} />
     </>
-  )
-}
-
-function DeckModal({ deck, defaultPlayerId, onClose }: { deck: Deck | 'new' | null; defaultPlayerId: number; onClose: () => void }) {
-  const players = usePlayers()
-  const commanders = useCommanders()
-  const save = useSaveDeck()
-  const existing = deck && deck !== 'new' ? deck : null
-  const [playerId, setPlayerId] = useState(existing?.playerId ?? defaultPlayerId ?? 0)
-  const [name, setName] = useState(existing?.name ?? '')
-  const [listUrl, setListUrl] = useState(existing?.listUrl ?? '')
-  const [cmd1, setCmd1] = useState(existing?.commanders[0]?.name ?? '')
-  const [cmd2, setCmd2] = useState(existing?.commanders[1]?.name ?? '')
-  const [hasPartner, setHasPartner] = useState((existing?.commanders.length ?? 1) > 1)
-
-  async function submit(e: FormEvent) {
-    e.preventDefault()
-    const names = [cmd1, hasPartner ? cmd2 : ''].map((s) => s.trim()).filter(Boolean)
-    await save.mutateAsync({ id: existing?.id, data: { playerId, name, listUrl: listUrl.trim() || null, commanders: names } })
-    onClose()
-  }
-
-  return (
-    <Modal open={deck !== null} onClose={onClose} title={existing ? 'Editar deck' : 'Novo deck'}>
-      <form onSubmit={submit} className="space-y-4">
-        <Field label="Jogador">
-          <select required value={playerId || ''} onChange={(e) => setPlayerId(Number(e.target.value))} className="w-full">
-            <option value="" disabled>Selecione…</option>
-            {players.data?.map((p) => <option key={p.id} value={p.id}>{playerLabel(p.name, p.nickname)}</option>)}
-          </select>
-        </Field>
-        <Field label="Nome do deck"><input required value={name} onChange={(e) => setName(e.target.value)} className="w-full" /></Field>
-        <datalist id="commander-names">
-          {commanders.data?.map((c) => <option key={c.id} value={c.name} />)}
-        </datalist>
-        <Field label="Comandante" hint="Escolha um nome existente para não dividir as estatísticas.">
-          <input required list="commander-names" value={cmd1} onChange={(e) => setCmd1(e.target.value)} className="w-full" autoComplete="off" />
-        </Field>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={hasPartner} onChange={(e) => setHasPartner(e.target.checked)} /> Tem parceiro / background
-        </label>
-        {hasPartner && (
-          <Field label="Segundo comandante">
-            <input required list="commander-names" value={cmd2} onChange={(e) => setCmd2(e.target.value)} className="w-full" autoComplete="off" />
-          </Field>
-        )}
-        <Field label="Link da lista (opcional)">
-          <input type="url" placeholder="https://…" value={listUrl} onChange={(e) => setListUrl(e.target.value)} className="w-full" />
-        </Field>
-        {!existing && <p className="text-xs text-zinc-500">Decks novos entram como Pendente.</p>}
-        <InlineError error={save.error} />
-        <div className="flex justify-end gap-2">
-          <button type="button" className="btn-secondary" onClick={onClose}>Cancelar</button>
-          <button className="btn-primary" disabled={save.isPending}>Salvar</button>
-        </div>
-      </form>
-    </Modal>
   )
 }
 

@@ -8,13 +8,13 @@ import { RequireAdmin, Root } from './components/RouteGuards'
 import { Empty } from './components/ui'
 import './index.css'
 import { AdminHomePage } from './pages/admin/AdminHomePage'
-import { CommandersPage } from './pages/admin/CommandersPage'
 import { DecksPage } from './pages/admin/DecksPage'
 import { LoginPage } from './pages/admin/LoginPage'
 import { PlayersPage } from './pages/admin/PlayersPage'
 import { RoundConductPage } from './pages/admin/RoundConductPage'
 import { SeasonsAdminPage } from './pages/admin/SeasonsAdminPage'
 import { LivePage, RoundPage } from './pages/public/LivePages'
+import { CommandersPage } from './pages/public/CommandersPage'
 import { SeasonDetailPage } from './pages/public/SeasonDetailPage'
 import { SeasonsPage } from './pages/public/SeasonsPage'
 
@@ -38,6 +38,7 @@ const router = createBrowserRouter([
         children: [
           { path: '/', element: <SeasonsPage /> },
           { path: '/temporadas/:id', element: <SeasonDetailPage /> },
+          { path: '/comandantes', element: <CommandersPage /> },
           { path: '/ao-vivo', element: <LivePage /> },
           { path: '/rodadas/:id', element: <RoundPage /> },
           { path: '/admin/login', element: <LoginPage /> },
@@ -51,7 +52,6 @@ const router = createBrowserRouter([
                   { path: '/admin/rodadas/:id', element: <RoundConductPage /> },
                   { path: '/admin/jogadores', element: <PlayersPage /> },
                   { path: '/admin/decks', element: <DecksPage /> },
-                  { path: '/admin/comandantes', element: <CommandersPage /> },
                   { path: '/admin/temporadas', element: <SeasonsAdminPage /> },
                 ],
               },

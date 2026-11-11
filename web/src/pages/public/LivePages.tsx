@@ -106,7 +106,7 @@ function RoundHeading({ round, asPageTitle = false }: { round: Round; asPageTitl
   const Title = asPageTitle ? 'h1' : 'h2'
   return (
     <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1">
-      <Title className="font-display text-2xl font-bold text-amber-100">Rodada {round.number}</Title>
+      <Title className="font-display text-2xl font-bold text-amber-100">Etapa {round.stageNumber} · Rodada {round.numberInStage}</Title>
       <RoundStatusBadge status={round.status} />
       <span className="w-full text-sm text-zinc-400 sm:w-auto">
         <Link to={`/temporadas/${round.seasonId}`} className="hover:text-zinc-200 hover:underline">{round.seasonName}</Link> · {formatDate(round.date)}

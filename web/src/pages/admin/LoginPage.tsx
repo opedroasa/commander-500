@@ -31,7 +31,7 @@ export function LoginPage() {
 
   return (
     <div className="mx-auto max-w-sm pt-6">
-      <h1 className="mb-1 font-display text-2xl font-bold text-amber-100">Área do lojista</h1>
+      <h1 className="mb-1 font-display text-2xl font-bold text-amber-100">Área do admin</h1>
       <p className="mb-6 text-sm text-zinc-400">Entre para conduzir rodadas e gerenciar cadastros.</p>
       <form onSubmit={submit} className="card space-y-4 p-5">
         <Field label="E-mail">

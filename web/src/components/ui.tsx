@@ -1,4 +1,4 @@
-import { AlertTriangle, Loader2 } from 'lucide-react'
+import { AlertTriangle, Loader2, X } from 'lucide-react'
 import { useEffect, useRef, type ReactNode } from 'react'
 import type { DeckStatus, RoundStatus } from '../api/types'
 import { deckStatusLabel, roundStatusLabel } from '../lib/format'
@@ -99,7 +99,13 @@ export function Tabs<T extends string>({ value, onChange, options }: {
 }
 
 /** Native <dialog> modal; closes on Esc and backdrop click. */
-export function Modal({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) {
+export function Modal({ open, onClose, title, children, wide = false }: {
+  open: boolean
+  onClose: () => void
+  title: string
+  children: ReactNode
+  wide?: boolean
+}) {
   const ref = useRef<HTMLDialogElement>(null)
   useEffect(() => {
     const d = ref.current
@@ -112,11 +118,18 @@ export function Modal({ open, onClose, title, children }: { open: boolean; onClo
       ref={ref}
       onClose={onClose}
       onClick={(e) => { if (e.target === ref.current) onClose() }}
-      className="m-auto w-[min(32rem,calc(100vw-2rem))] rounded-2xl border border-zinc-800 bg-zinc-900 p-0 text-zinc-100 backdrop:bg-black/70"
+      className={`m-auto max-h-[calc(100dvh-2rem)] rounded-2xl border border-zinc-800 bg-zinc-900 p-0 text-zinc-100 backdrop:bg-black/70 ${
+        wide ? 'w-[min(44rem,calc(100vw-1.5rem))]' : 'w-[min(32rem,calc(100vw-2rem))]'
+      }`}
     >
       {open && (
         <div className="p-5">
-          <h2 className="mb-4 text-lg font-semibold">{title}</h2>
+          <div className="mb-4 flex items-start gap-3">
+            <h2 className="flex-1 text-lg font-semibold">{title}</h2>
+            <button type="button" onClick={onClose} className="-m-1 rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100" aria-label="Fechar">
+              <X className="size-5" />
+            </button>
+          </div>
           {children}
         </div>
       )}

@@ -28,12 +28,10 @@ public static class AdminEndpoints
         players.MapPut("/{id:int}", (int id, PlayerUpsertRequest req, CatalogService s) => s.UpdatePlayer(id, req));
         players.MapDelete("/{id:int}", async (int id, CatalogService s) => { await s.DeletePlayer(id); return Results.NoContent(); });
 
-        // ---- Commanders
-        var commanders = api.MapGroup("/commanders").WithTags("Admin · Commanders");
-        commanders.MapGet("/", (string? search, CatalogService s) => s.Commanders(search));
-        commanders.MapPost("/", async (CommanderUpsertRequest req, CatalogService s) => Created("commanders", await s.CreateCommander(req), c => c.Id));
-        commanders.MapPut("/{id:int}", (int id, CommanderUpsertRequest req, CatalogService s) => s.UpdateCommander(id, req));
-        commanders.MapDelete("/{id:int}", async (int id, CatalogService s) => { await s.DeleteCommander(id); return Results.NoContent(); });
+        // ---- Commander picker (Scryfall)
+        api.MapGet("/scryfall/commanders", (string? q, CatalogService s) => s.SearchCommanders(q))
+            .WithTags("Admin · Decks")
+            .WithSummary("Busca comandantes/backgrounds no Scryfall pelo nome (mín. 2 letras).");
 
         // ---- Decks
         var decks = api.MapGroup("/decks").WithTags("Admin · Decks");

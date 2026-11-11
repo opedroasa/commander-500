@@ -116,15 +116,18 @@ public static class DbSeeder
         var rng = new SeededRandomSource(500);
         var players = await db.Players.Include(p => p.Decks).OrderBy(p => p.Id).ToListAsync();
         var rounds = new List<Round>();
+        var stages = new List<Stage>();
 
+        // Etapa 1 (first day): rounds 1 and 2. Etapa 2 (a week later): round 3.
         for (var number = 1; number <= 3; number++)
         {
-            var date = season.StartDate.AddDays(7 * (number - 1));
-            var startedAt = date.ToDateTime(new TimeOnly(22, 0), DateTimeKind.Utc); // 19h em Brasília
+            var date = season.StartDate.AddDays(number == 3 ? 7 : 0);
+            var startedAt = date.ToDateTime(new TimeOnly(number == 2 ? 23 : 22, 15), DateTimeKind.Utc); // ~19h/20h em Brasília
+            var stage = StageRules.Resolve(season, stages, date);
 
             // Round 2 has one absentee, so it gets 1 bye instead of 2.
             var present = number == 2 ? players.Where(p => p != players[^1]).ToList() : players;
-            var round = new Round { Season = season, SeasonId = season.Id, Number = number, Date = date, DurationMinutes = season.DefaultRoundMinutes };
+            var round = new Round { Season = season, SeasonId = season.Id, Stage = stage, Number = number, Date = date, DurationMinutes = season.DefaultRoundMinutes };
             RoundWorkflow.SetEntries(round, present.Select(p => new EntryInput(p.Id, p.Decks.OrderBy(d => d.Id).First().Id)).ToList());
             RoundWorkflow.Draw(round, RoundWorkflow.CountPreviousByes(rounds, excludingRoundId: -1), rng);
             RoundWorkflow.Start(round, startedAt);

@@ -10,6 +10,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Commander> Commanders => Set<Commander>();
     public DbSet<Deck> Decks => Set<Deck>();
     public DbSet<DeckCommander> DeckCommanders => Set<DeckCommander>();
+    public DbSet<Stage> Stages => Set<Stage>();
     public DbSet<Round> Rounds => Set<Round>();
     public DbSet<RoundEntry> RoundEntries => Set<RoundEntry>();
     public DbSet<GameTable> Tables => Set<GameTable>();
@@ -42,6 +43,17 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.Name).HasMaxLength(200).IsRequired();
             e.Property(x => x.NormalizedName).HasMaxLength(200).IsRequired();
             e.HasIndex(x => x.NormalizedName).IsUnique();
+            e.HasIndex(x => x.ScryfallId).IsUnique().HasFilter("\"ScryfallId\" IS NOT NULL");
+            e.Property(x => x.ArtUrl).HasMaxLength(500);
+            e.Property(x => x.ImageUrl).HasMaxLength(500);
+            e.Property(x => x.ColorIdentity).HasMaxLength(5);
+        });
+
+        b.Entity<Stage>(e =>
+        {
+            e.HasOne(x => x.Season).WithMany(s => s.Stages).HasForeignKey(x => x.SeasonId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.SeasonId, x.Date }).IsUnique();
+            e.HasIndex(x => new { x.SeasonId, x.Number }); // not unique: renumbering by date updates rows one by one
         });
 
         b.Entity<Deck>(e =>
@@ -62,6 +74,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         b.Entity<Round>(e =>
         {
             e.HasOne(x => x.Season).WithMany(s => s.Rounds).HasForeignKey(x => x.SeasonId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Stage).WithMany(s => s.Rounds).HasForeignKey(x => x.StageId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => new { x.SeasonId, x.Number }).IsUnique();
         });
 

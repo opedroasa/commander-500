@@ -27,6 +27,30 @@ public class CommanderStatsCalculatorTests
     }
 
     [Fact]
+    public void Counts_registered_decks_and_distinct_players()
+    {
+        var kinnan = Decks.Of("Kinnan, Bonder Prodigy");
+        var kinnan2 = Decks.Of("Kinnan, Bonder Prodigy");
+        var urza = Decks.Of("Urza, Lord High Artificer");
+        var neverPlayed = Decks.Of("Tivit, Seller of Secrets");
+        var round = new RoundBuilder(1)
+            .WithDeck(1, kinnan).WithDeck(2, kinnan2).WithDeck(3, urza).WithDeck(4, urza)
+            .Table(winner: 1, 1, 2, 3, 4).Build();
+
+        var seasonView = CommanderStatsCalculator.Calculate([round], 1, [kinnan, kinnan2, urza, neverPlayed]);
+        var kinnanRow = seasonView.Single(s => s.Name.StartsWith("Kinnan"));
+        Assert.Equal(2, kinnanRow.Decks);
+        Assert.Equal(2, kinnanRow.Players);
+        Assert.Equal(2, kinnanRow.Matches);
+        Assert.DoesNotContain(seasonView, s => s.Name.StartsWith("Tivit")); // unplayed hidden by default
+
+        var global = CommanderStatsCalculator.Calculate([round], 1, [kinnan, kinnan2, urza, neverPlayed], includeUnplayed: true);
+        var tivit = global.Single(s => s.Name.StartsWith("Tivit"));
+        Assert.Equal((0, 1, 0), (tivit.Matches, tivit.Decks, tivit.Players));
+        Assert.Null(tivit.WinRate);
+    }
+
+    [Fact]
     public void Byes_are_not_matches_or_wins()
     {
         var atraxa = Decks.Of("Atraxa, Praetors' Voice");

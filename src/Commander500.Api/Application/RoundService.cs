@@ -10,9 +10,10 @@ public class RoundService(AppDbContext db, TimeProvider clock, IRandomSource rng
 {
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
 
-    /// <summary>Round with everything the round screens need.</summary>
+    /// <summary>Round with everything the round screens need. Has a cycle (Round → Stage → Rounds): read-only callers must use AsNoTrackingWithIdentityResolution.</summary>
     public static IQueryable<Round> WithGraph(IQueryable<Round> q) => q
         .Include(r => r.Season)
+        .Include(r => r.Stage).ThenInclude(s => s!.Rounds)
         .Include(r => r.Entries).ThenInclude(e => e.Player)
         .Include(r => r.Entries).ThenInclude(e => e.Deck).ThenInclude(d => d!.Commanders).ThenInclude(dc => dc.Commander)
         .Include(r => r.Tables).ThenInclude(t => t.Seats)
@@ -27,7 +28,7 @@ public class RoundService(AppDbContext db, TimeProvider clock, IRandomSource rng
     /// <summary>Drawn / in-progress rounds of every active season (several seasons may be active).</summary>
     public async Task<IReadOnlyList<RoundDto>> Current()
     {
-        var rounds = await WithGraph(db.Rounds.AsNoTracking())
+        var rounds = await WithGraph(db.Rounds.AsNoTrackingWithIdentityResolution())
             .Where(r => r.Season!.IsActive && (r.Status == RoundStatus.Drawn || r.Status == RoundStatus.InProgress))
             .OrderBy(r => r.Season!.Name).ThenBy(r => r.Number)
             .ToListAsync();
@@ -42,15 +43,31 @@ public class RoundService(AppDbContext db, TimeProvider clock, IRandomSource rng
         if (duration is < 1 or > RoundWorkflow.MaxDurationMinutes)
             throw new ValidationException($"Duração deve estar entre 1 e {RoundWorkflow.MaxDurationMinutes} minutos.");
 
+        var date = req.Date ?? DateOnly.FromDateTime(Now);
+        var stages = await db.Stages.Where(s => s.SeasonId == seasonId).ToListAsync();
+        var stage = StageRules.Resolve(season, stages, date);
+        if (stage.Id == 0) db.Stages.Add(stage);
+
         var lastNumber = await db.Rounds.Where(r => r.SeasonId == seasonId).MaxAsync(r => (int?)r.Number) ?? 0;
         var round = new Round
         {
             SeasonId = seasonId,
+            Stage = stage,
             Number = lastNumber + 1,
-            Date = req.Date ?? DateOnly.FromDateTime(Now),
+            Date = date,
             DurationMinutes = duration,
             Status = RoundStatus.Draft,
         };
+
+        // Another round of the same stage (etapa): start with the previous round's players and decks.
+        // The store only unchecks who left; they keep their results in the stage.
+        if (stage.Id != 0)
+        {
+            var previous = await db.Rounds.Include(r => r.Entries)
+                .Where(r => r.StageId == stage.Id).OrderByDescending(r => r.Number).FirstOrDefaultAsync();
+            if (previous is not null)
+                RoundWorkflow.SetEntries(round, previous.Entries.Select(e => new EntryInput(e.PlayerId, e.DeckId)).ToList());
+        }
         db.Rounds.Add(round);
         await db.SaveChangesAsync();
         return await Reload(round.Id);
@@ -82,7 +99,12 @@ public class RoundService(AppDbContext db, TimeProvider clock, IRandomSource rng
         var round = await Load(id);
         var seasonRounds = await db.Rounds.Where(r => r.SeasonId == round.SeasonId).Include(r => r.Entries).ToListAsync();
         var previousByes = RoundWorkflow.CountPreviousByes(seasonRounds, id);
-        RoundWorkflow.Draw(round, previousByes, rng);
+        // Earlier rounds of the same stage: the draw avoids repeating table-mates and seats.
+        var stageRounds = await db.Rounds.AsNoTracking()
+            .Where(r => r.StageId == round.StageId && r.Id != id && r.Status != RoundStatus.Draft)
+            .Include(r => r.Entries).Include(r => r.Tables).ThenInclude(t => t.Seats)
+            .AsSplitQuery().ToListAsync();
+        RoundWorkflow.Draw(round, previousByes, rng, stageRounds);
         await db.SaveChangesAsync();
         return await Reload(id);
     }
@@ -119,6 +141,14 @@ public class RoundService(AppDbContext db, TimeProvider clock, IRandomSource rng
         var round = await Load(id);
         RoundWorkflow.EnsureDeletable(round);
         db.Rounds.Remove(round);
+
+        // Last round of the stage → drop the empty stage and renumber the others.
+        if (round.Stage is { } stage && stage.Rounds.All(r => r.Id == round.Id))
+        {
+            db.Stages.Remove(stage);
+            var others = await db.Stages.Where(s => s.SeasonId == round.SeasonId && s.Id != stage.Id).ToListAsync();
+            StageRules.Renumber(others);
+        }
         await db.SaveChangesAsync();
     }
 
