@@ -22,10 +22,18 @@ public class ContextoBanco(DbContextOptions<ContextoBanco> opcoes) : DbContext(o
     public DbSet<Mesa> Mesas => Set<Mesa>();
     public DbSet<Cadeira> Cadeiras => Set<Cadeira>();
     public DbSet<Administrador> Administradores => Set<Administrador>();
+    public DbSet<Regulamento> Regulamentos => Set<Regulamento>();
 
     public Task<int> SalvarAsync(CancellationToken cancelamento = default) => SaveChangesAsync(cancelamento);
 
     public void LimparRastreamento() => ChangeTracker.Clear();
+
+    public async Task EmTransacaoAsync(Func<Task> acao, CancellationToken cancelamento = default)
+    {
+        await using var transacao = await Database.BeginTransactionAsync(cancelamento);
+        await acao();
+        await transacao.CommitAsync(cancelamento);
+    }
 
     protected override void ConfigureConventions(ModelConfigurationBuilder convencoes)
     {
@@ -33,6 +41,7 @@ public class ContextoBanco(DbContextOptions<ContextoBanco> opcoes) : DbContext(o
         convencoes.Properties<SituacaoDeck>().HaveConversion<string>().HaveMaxLength(20);
         convencoes.Properties<SituacaoRodada>().HaveConversion<string>().HaveMaxLength(20);
         convencoes.Properties<ResultadoMesa>().HaveConversion<string>().HaveMaxLength(20);
+        convencoes.Properties<ModoPontuacao>().HaveConversion<string>().HaveMaxLength(30);
     }
 
     protected override void OnModelCreating(ModelBuilder modelo) =>

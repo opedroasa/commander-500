@@ -1,4 +1,4 @@
-import { Home, LogOut, Moon, Radio, Shield, Sparkles, Sun } from 'lucide-react'
+import { Home, LogOut, Moon, Radio, ScrollText, Shield, Sparkles, Sun } from 'lucide-react'
 import { NavLink, Outlet, useNavigate } from 'react-router'
 import { useAutenticacao } from '../autenticacao/ContextoAutenticacao'
 import { useTema } from '../utilitarios/tema'
@@ -45,6 +45,7 @@ export function LayoutPublico() {
           <nav className="flex gap-0.5 sm:gap-1">
             <NavLink to="/" end className={estiloLinkMenu} aria-label="Início"><Home className="size-4" aria-hidden /><span className="hidden md:inline">Início</span></NavLink>
             <NavLink to="/comandantes" className={estiloLinkMenu} aria-label="Comandantes"><Sparkles className="size-4" aria-hidden /><span className="hidden md:inline">Comandantes</span></NavLink>
+            <NavLink to="/regras" className={estiloLinkMenu} aria-label="Regras"><ScrollText className="size-4" aria-hidden /><span className="hidden md:inline">Regras</span></NavLink>
             <NavLink to="/ao-vivo" className={estiloLinkMenu}><Radio className="size-4" aria-hidden /><span className="hidden sm:inline">Ao vivo</span></NavLink>
             <NavLink to="/admin" className={estiloLinkMenu} aria-label={sessao ? 'Área do admin' : 'Entrar como admin'}>
               <Shield className="size-4" aria-hidden /><span className="hidden md:inline">Admin</span>
@@ -73,6 +74,7 @@ const linksAdmin = [
   { para: '/admin/jogadores', rotulo: 'Jogadores' },
   { para: '/admin/decks', rotulo: 'Decks' },
   { para: '/admin/temporadas', rotulo: 'Temporadas' },
+  { para: '/admin/regras', rotulo: 'Regras' },
 ]
 
 /** Menu da área do admin (dentro do LayoutPublico). */

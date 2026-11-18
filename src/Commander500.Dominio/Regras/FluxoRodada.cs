@@ -10,15 +10,18 @@ public record ParticipanteInformado(int IdJogador, int IdDeck);
 /// <summary>Timer da rodada calculado a partir do início + duração (spec 4.4).</summary>
 public record Cronometro(DateTime IniciadaEm, int DuracaoMinutos, DateTime TerminaEm, int SegundosRestantes, bool Esgotado);
 
-/// <summary>Quem já dividiu mesa numa etapa, e a cadeira de cada jogador na rodada mais recente.</summary>
-public record HistoricoEtapa(IReadOnlyDictionary<(int, int), int> Pares, IReadOnlyDictionary<int, int> UltimaCadeira)
+/// <summary>Quem já dividiu mesa numa etapa, a cadeira de cada jogador na rodada mais recente e quem já ficou de bye.</summary>
+public record HistoricoEtapa(IReadOnlyDictionary<(int, int), int> Pares, IReadOnlyDictionary<int, int> UltimaCadeira,
+    IReadOnlyDictionary<int, int> Byes)
 {
     public static HistoricoEtapa Montar(IEnumerable<Rodada> rodadas)
     {
         var pares = new Dictionary<(int, int), int>();
         var ultimaCadeira = new Dictionary<int, int>();
+        var byes = new Dictionary<int, int>();
         foreach (var rodada in rodadas.Where(r => r.Situacao != SituacaoRodada.Rascunho).OrderBy(r => r.Numero))
         {
+            foreach (var bye in rodada.Participacoes.Where(p => p.Bye)) byes[bye.IdJogador] = byes.GetValueOrDefault(bye.IdJogador) + 1;
             var participacoesPorId = rodada.Participacoes.ToDictionary(p => p.Id);
             foreach (var mesa in rodada.Mesas)
             {
@@ -34,7 +37,7 @@ public record HistoricoEtapa(IReadOnlyDictionary<(int, int), int> Pares, IReadOn
                     }
             }
         }
-        return new HistoricoEtapa(pares, ultimaCadeira);
+        return new HistoricoEtapa(pares, ultimaCadeira, byes);
     }
 }
 
@@ -82,7 +85,8 @@ public static class FluxoRodada
         var historico = HistoricoEtapa.Montar(rodadasAnterioresDaEtapa ?? []);
         var candidatos = participacoes
             .Select((p, indice) => new CandidatoSorteio(indice, byesAnterioresPorJogador.GetValueOrDefault(p.IdJogador),
-                historico.UltimaCadeira.TryGetValue(p.IdJogador, out var cadeira) ? cadeira : null))
+                historico.UltimaCadeira.TryGetValue(p.IdJogador, out var cadeira) ? cadeira : null,
+                historico.Byes.GetValueOrDefault(p.IdJogador)))
             .ToList();
 
         // Converte os pares de jogadores (Id) em pares de chaves do sorteio (posição na lista).
@@ -111,6 +115,71 @@ public static class FluxoRodada
         rodada.Situacao = SituacaoRodada.Sorteada;
     }
 
+    public const int MinimoJogadoresMesaManual = 2;
+    public const int MaximoJogadoresMesaManual = 6;
+
+    /// <summary>
+    /// Monta as mesas à mão (rodadas que já aconteceram ou quando o lojista não quer sortear). Cada mesa é a lista de
+    /// participações na ordem das cadeiras (a primeira começa jogando). Quem não estiver em nenhuma mesa fica de bye.
+    /// Permitido em Rascunho/Sorteada → Sorteada.
+    /// </summary>
+    public static void MontarMesas(Rodada rodada, IReadOnlyList<IReadOnlyList<int>> mesasComParticipacoes)
+    {
+        GarantirSituacao(rodada, "montar as mesas", SituacaoRodada.Rascunho, SituacaoRodada.Sorteada);
+        var mesas = mesasComParticipacoes.Where(m => m.Count > 0).ToList();
+        if (mesas.Count == 0) throw new DadosInvalidosException("Monte pelo menos uma mesa.");
+
+        var participacoesPorId = rodada.Participacoes.ToDictionary(p => p.Id);
+        var sentados = new HashSet<int>();
+        foreach (var mesa in mesas)
+        {
+            if (mesa.Count is < MinimoJogadoresMesaManual or > MaximoJogadoresMesaManual)
+                throw new DadosInvalidosException($"Cada mesa deve ter de {MinimoJogadoresMesaManual} a {MaximoJogadoresMesaManual} jogadores.");
+            foreach (var idParticipacao in mesa)
+            {
+                if (!participacoesPorId.ContainsKey(idParticipacao))
+                    throw new DadosInvalidosException("Só jogadores presentes na rodada podem sentar nas mesas.");
+                if (!sentados.Add(idParticipacao))
+                    throw new DadosInvalidosException("Um jogador não pode sentar em duas mesas.");
+            }
+        }
+
+        DesfazerSorteio(rodada);
+        foreach (var participacao in rodada.Participacoes) participacao.Bye = !sentados.Contains(participacao.Id);
+        for (var numeroMesa = 0; numeroMesa < mesas.Count; numeroMesa++)
+        {
+            var mesa = new Mesa { Numero = numeroMesa + 1, Rodada = rodada };
+            for (var posicao = 0; posicao < mesas[numeroMesa].Count; posicao++)
+            {
+                var participacao = participacoesPorId[mesas[numeroMesa][posicao]];
+                mesa.Cadeiras.Add(new Cadeira { Mesa = mesa, Participacao = participacao, IdParticipacao = participacao.Id, Numero = posicao + 1 });
+            }
+            rodada.Mesas.Add(mesa);
+        }
+        rodada.Situacao = SituacaoRodada.Sorteada;
+    }
+
+    /// <summary>
+    /// Troca quem começa jogando na mesa: o jogador escolhido vai para a cadeira 1 e os outros giram junto,
+    /// mantendo a ordem de jogo (quem estava depois dele continua depois). Permitido até a rodada ser encerrada.
+    /// </summary>
+    public static void DefinirQuemComeca(Rodada rodada, Mesa mesa, int idParticipacao)
+    {
+        GarantirSituacao(rodada, "trocar quem começa", SituacaoRodada.Sorteada, SituacaoRodada.EmAndamento);
+        if (!rodada.Mesas.Contains(mesa)) throw new RegraNegocioException("A mesa não pertence a esta rodada.");
+        var cadeiras = mesa.Cadeiras.OrderBy(c => c.Numero).ToList();
+        var indice = cadeiras.FindIndex(c => IdParticipacaoDaCadeira(c) == idParticipacao);
+        if (indice < 0) throw new RegraNegocioException("O jogador escolhido não está sentado nesta mesa.");
+        for (var i = 0; i < cadeiras.Count; i++)
+            cadeiras[(indice + i) % cadeiras.Count].Numero = i + 1;
+    }
+
+    /// <summary>
+    /// Rodada com data anterior a hoje: já aconteceu e está sendo lançada depois. Pode receber resultados e ser encerrada
+    /// sem passar pelo timer (Sorteada → Encerrada).
+    /// </summary>
+    public static bool EhRetroativa(Rodada rodada, DateOnly? hoje) => hoje is { } dia && rodada.Data < dia;
+
     /// <summary>Inicia o timer. Sorteada → EmAndamento.</summary>
     public static void Iniciar(Rodada rodada, DateTime agoraUtc, int? duracaoMinutos = null)
     {
@@ -125,10 +194,14 @@ public static class FluxoRodada
     }
 
     /// <summary>Registra (ou corrige, depois de encerrada) o resultado de uma mesa.</summary>
+    /// <param name="hoje">Data de hoje (fuso da loja). Rodadas de datas passadas aceitam resultado ainda sorteadas.</param>
     public static void RegistrarResultado(Rodada rodada, Mesa mesa, ResultadoMesa resultado, int? idParticipacaoVencedora,
-        DateTime agoraUtc, string? alteradaPor)
+        DateTime agoraUtc, string? alteradaPor, DateOnly? hoje = null)
     {
-        GarantirSituacao(rodada, "registrar resultado", SituacaoRodada.EmAndamento, SituacaoRodada.Encerrada);
+        if (EhRetroativa(rodada, hoje))
+            GarantirSituacao(rodada, "registrar resultado", SituacaoRodada.Sorteada, SituacaoRodada.EmAndamento, SituacaoRodada.Encerrada);
+        else
+            GarantirSituacao(rodada, "registrar resultado", SituacaoRodada.EmAndamento, SituacaoRodada.Encerrada);
         if (!rodada.Mesas.Contains(mesa))
             throw new RegraNegocioException("A mesa não pertence a esta rodada.");
 
@@ -152,10 +225,14 @@ public static class FluxoRodada
         mesa.AlteradaPor = alteradaPor;
     }
 
-    /// <summary>EmAndamento → Encerrada. Toda mesa precisa de resultado. Trava a configuração da temporada.</summary>
-    public static void Encerrar(Rodada rodada, DateTime agoraUtc)
+    /// <summary>
+    /// EmAndamento → Encerrada (ou Sorteada → Encerrada numa rodada retroativa). Toda mesa precisa de resultado.
+    /// Trava a configuração da temporada.
+    /// </summary>
+    public static void Encerrar(Rodada rodada, DateTime agoraUtc, DateOnly? hoje = null)
     {
-        GarantirSituacao(rodada, "encerrar", SituacaoRodada.EmAndamento);
+        if (EhRetroativa(rodada, hoje)) GarantirSituacao(rodada, "encerrar", SituacaoRodada.Sorteada, SituacaoRodada.EmAndamento);
+        else GarantirSituacao(rodada, "encerrar", SituacaoRodada.EmAndamento);
         var pendentes = rodada.Mesas.Where(m => m.Resultado == ResultadoMesa.Pendente).Select(m => m.Numero).OrderBy(n => n).ToList();
         if (pendentes.Count > 0)
             throw new RegraNegocioException($"Mesas sem resultado: {string.Join(", ", pendentes)}.");

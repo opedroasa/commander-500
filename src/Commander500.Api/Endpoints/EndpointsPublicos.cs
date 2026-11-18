@@ -21,9 +21,13 @@ public static class EndpointsPublicos
         temporadas.MapGet("/{id:int}/etapas", (int id, ServicoEstatisticas s) => s.Etapas(id))
             .WithSummary("Etapas da temporada (mais recente primeiro) com o(s) líder(es) de cada uma.");
 
+        app.MapGet("/api/regulamento", (ServicoRegulamento s) => s.Obter())
+            .WithTags("Público · Regulamento").AllowAnonymous()
+            .WithSummary("Regulamento da liga (HTML do editor).");
+
         app.MapGet("/api/etapas/{id:int}", (int id, ServicoEstatisticas s) => s.Etapa(id))
             .WithTags("Público · Etapas").AllowAnonymous()
-            .WithSummary("Etapa: ranking do dia (vitórias, bye, confronto direto) e rodadas.");
+            .WithSummary("Etapa: ranking do dia (pontos, bye, confronto direto), pontos na temporada e rodadas.");
 
         app.MapGet("/api/comandantes/estatisticas", (int? idTemporada, ServicoEstatisticas s) => s.Comandantes(idTemporada))
             .WithTags("Público · Comandantes").AllowAnonymous()

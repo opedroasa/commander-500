@@ -1,4 +1,4 @@
-import { CalendarDays, ChevronRight, Crown, Radio, Trophy } from 'lucide-react'
+import { CalendarClock, CalendarDays, ChevronRight, Crown, FileText, Radio, ScrollText, Trophy } from 'lucide-react'
 import { Link } from 'react-router'
 import { useEstatisticasComandantes, useRanking, useRodadasAtuais, useTemporadas } from '../../api/consultas'
 import type { EstatisticaComandante, Temporada } from '../../api/tipos'
@@ -6,7 +6,7 @@ import { ArteComandante } from '../../componentes/ArteComandante'
 import { CaixaErro, Carregando, Vazio } from '../../componentes/comum'
 import { LogoLoja } from '../../componentes/Layout'
 import { CartoesArteComandante, ListaComandantes } from '../../componentes/RankingComandantes'
-import { formatarData } from '../../utilitarios/formatacao'
+import { formatarData, formatarDiaEHora, hojeIso, paraCampoDataHora } from '../../utilitarios/formatacao'
 
 /** Comandante com mais vitórias (empate: maior % de vitória, depois menos partidas). */
 function comandanteDestaque(linhas: EstatisticaComandante[] | undefined): EstatisticaComandante | undefined {
@@ -55,6 +55,17 @@ export function PaginaInicial() {
         <section className="space-y-4" aria-label="Temporadas em andamento">
           {ativas.map((t) => <BannerTemporada key={t.id} temporada={t} />)}
         </section>
+      )}
+
+      {ativas.length > 0 && (
+        <Link to="/regras" className="flex items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 transition hover:border-zinc-600">
+          <ScrollText className="size-6 text-amber-400" aria-hidden />
+          <span className="flex-1">
+            <span className="block font-semibold text-zinc-100">Regulamento da liga</span>
+            <span className="block text-sm text-zinc-400">Limite de preço, proxies, pontuação, desempate e final.</span>
+          </span>
+          <ChevronRight className="size-5 text-zinc-500" aria-hidden />
+        </Link>
       )}
 
       {temDadosComandantes && comandantes.data && (
@@ -108,6 +119,9 @@ function BannerTemporada({ temporada }: { temporada: Temporada }) {
   const ranking = useRanking(temporada.id)
   const destaque = comandanteDestaque(estatisticas.data)
   const lider = ranking.data?.[0]
+  // Aviso da próxima etapa: some sozinho depois do dia marcado.
+  const proximaEtapa = temporada.proximaEtapaEm && paraCampoDataHora(temporada.proximaEtapaEm).slice(0, 10) >= hojeIso()
+    ? temporada.proximaEtapaEm : null
 
   return (
     <Link
@@ -139,6 +153,21 @@ function BannerTemporada({ temporada }: { temporada: Temporada }) {
           </span>
           <span>{temporada.quantidadeEtapas} etapa{temporada.quantidadeEtapas === 1 ? '' : 's'} · {temporada.quantidadeRodadas} rodada{temporada.quantidadeRodadas === 1 ? '' : 's'}</span>
         </p>
+
+        {proximaEtapa && (
+          <div className="flex w-fit flex-col gap-1 rounded-2xl bg-black/55 px-4 py-3 ring-1 ring-amber-400/40 backdrop-blur-sm sm:flex-row sm:items-center sm:gap-5">
+            <span className="inline-flex items-center gap-2 text-sm">
+              <CalendarClock className="size-5 text-amber-300" aria-hidden />
+              <span>Próxima etapa marcada: <b className="text-base text-amber-200">{formatarDiaEHora(proximaEtapa)}</b></span>
+            </span>
+            {temporada.prazoListas && (
+              <span className="inline-flex items-center gap-2 text-sm">
+                <FileText className="size-5 text-amber-300" aria-hidden />
+                <span>Prazo para enviar listas: <b className="text-base text-amber-200">{formatarData(temporada.prazoListas)}</b></span>
+              </span>
+            )}
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-2 text-sm">
           {lider && (

@@ -150,3 +150,20 @@ export function Campo({ rotulo, children, dica }: { rotulo: string; children: Re
     </label>
   )
 }
+
+/**
+ * Explicação das siglas de uma tabela, sempre visível embaixo dela (ex.: "Pts = pontos").
+ * Cada item é [sigla, significado].
+ */
+export function LegendaSiglas({ itens, className = '' }: { itens: [string, string][]; className?: string }) {
+  return (
+    <dl className={`flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-400 ${className}`} aria-label="Legenda das siglas">
+      {itens.map(([sigla, significado]) => (
+        <div key={sigla} className="flex gap-1">
+          <dt className="font-semibold text-zinc-300">{sigla}</dt>
+          <dd>= {significado}</dd>
+        </div>
+      ))}
+    </dl>
+  )
+}

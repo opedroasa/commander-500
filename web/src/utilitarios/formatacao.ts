@@ -1,4 +1,4 @@
-import type { CriterioDesempate, SituacaoDeck, SituacaoRodada } from '../api/tipos'
+import type { CriterioDesempate, ModoPontuacao, SituacaoDeck, SituacaoRodada } from '../api/tipos'
 
 export const rotuloSituacaoRodada: Record<SituacaoRodada, string> = {
   Rascunho: 'Rascunho',
@@ -63,4 +63,41 @@ export function chaveBusca(texto: string): string {
 
 export function nomeComApelido(nome: string, apelido: string | null | undefined): string {
   return apelido ? `${nome} (${apelido})` : nome
+}
+
+export const rotuloModoPontuacao: Record<ModoPontuacao, string> = {
+  ColocacaoNaEtapa: 'Colocação na etapa',
+  SomaDasRodadas: 'Soma das rodadas',
+}
+
+/** Explicação dos modos para o lojista escolher. */
+export const explicacaoModoPontuacao: Record<ModoPontuacao, string> = {
+  ColocacaoNaEtapa:
+    'Cada etapa tem o próprio ranking com os pontos das rodadas (vitória, empate, derrota, bye). No fim do dia, a colocação ' +
+    'vira pontos na temporada pela tabela abaixo (ex.: 1º 5, 2º 4, 3º 3, 4º 2, demais 1). Empatados ganham os pontos da melhor ' +
+    'posição. Permite formar a mesa final do top 4, que soma do mesmo jeito.',
+  SomaDasRodadas:
+    'Os pontos de cada rodada (vitória, empate, derrota/presença e bye) somam direto no ranking da temporada. ' +
+    'Quem joga mais etapas acumula mais. Não tem mesa final.',
+}
+
+/** Data/hora da API (UTC) → valor de um <input type="datetime-local"> no horário do navegador. */
+export function paraCampoDataHora(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const doisDigitos = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${doisDigitos(d.getMonth() + 1)}-${doisDigitos(d.getDate())}T${doisDigitos(d.getHours())}:${doisDigitos(d.getMinutes())}`
+}
+
+/** Valor de um <input type="datetime-local"> (horário do navegador) → ISO com fuso, para a API. */
+export function deCampoDataHora(valor: string): string | null {
+  return valor ? new Date(valor).toISOString() : null
+}
+
+/** "2026-11-28T17:00:00Z" → "28/11/2026 · 14h" (ou "14h30"). */
+export function formatarDiaEHora(iso: string): string {
+  const d = new Date(iso)
+  const dia = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  const minutos = d.getMinutes()
+  return `${dia} · ${d.getHours()}h${minutos ? String(minutos).padStart(2, '0') : ''}`
 }

@@ -13,6 +13,7 @@ public class TemporadaConfiguracao : IEntityTypeConfiguration<Temporada>
     {
         tabela.Property(t => t.Nome).HasMaxLength(120).IsRequired();
         tabela.Property(t => t.CriteriosDesempate).HasMaxLength(200).IsRequired();
+        tabela.Property(t => t.PontosPorColocacao).HasMaxLength(100).IsRequired();
     }
 }
 
@@ -66,7 +67,7 @@ public class EtapaConfiguracao : IEntityTypeConfiguration<Etapa>
     public void Configure(EntityTypeBuilder<Etapa> tabela)
     {
         tabela.HasOne(e => e.Temporada).WithMany(t => t.Etapas).HasForeignKey(e => e.IdTemporada).OnDelete(DeleteBehavior.Cascade);
-        tabela.HasIndex(e => new { e.IdTemporada, e.Data }).IsUnique();
+        tabela.HasIndex(e => new { e.IdTemporada, e.Data, e.Final }).IsUnique(); // a final pode cair no mesmo dia da última etapa
         tabela.HasIndex(e => new { e.IdTemporada, e.Numero }); // não é único: ao renumerar pela data as linhas mudam uma a uma
     }
 }
@@ -111,7 +112,7 @@ public class CadeiraConfiguracao : IEntityTypeConfiguration<Cadeira>
         tabela.HasOne(c => c.Mesa).WithMany(m => m.Cadeiras).HasForeignKey(c => c.IdMesa).OnDelete(DeleteBehavior.Cascade);
         tabela.HasOne(c => c.Participacao).WithMany().HasForeignKey(c => c.IdParticipacao).OnDelete(DeleteBehavior.Cascade);
         tabela.HasIndex(c => new { c.IdMesa, c.Numero }).IsUnique(); // uma pessoa por cadeira
-        tabela.ToTable(t => t.HasCheckConstraint("CK_Cadeiras_Numero", "\"Numero\" BETWEEN 1 AND 4"));
+        tabela.ToTable(t => t.HasCheckConstraint("CK_Cadeiras_Numero", "\"Numero\" BETWEEN 1 AND 6"));
     }
 }
 
@@ -121,5 +122,14 @@ public class AdministradorConfiguracao : IEntityTypeConfiguration<Administrador>
     {
         tabela.Property(a => a.Email).HasMaxLength(200).IsRequired();
         tabela.HasIndex(a => a.Email).IsUnique();
+    }
+}
+
+public class RegulamentoConfiguracao : IEntityTypeConfiguration<Regulamento>
+{
+    public void Configure(EntityTypeBuilder<Regulamento> tabela)
+    {
+        tabela.Property(r => r.Conteudo).IsRequired(); // HTML do editor (text no PostgreSQL)
+        tabela.Property(r => r.AlteradoPor).HasMaxLength(200);
     }
 }

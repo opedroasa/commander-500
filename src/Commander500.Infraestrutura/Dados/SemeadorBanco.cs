@@ -14,6 +14,7 @@ namespace Commander500.Infraestrutura.Dados;
 /// Dados criados na inicialização da Api.
 /// - Administrador: vem da configuração (variáveis Admin__Email / Admin__Senha). É criado se não existir; se existir e a
 ///   senha da configuração mudou, a senha é atualizada (a configuração manda).
+/// - Regulamento: o texto do tratado, se ainda não houver (depois o lojista edita pela tela).
 /// - Demonstração (só com Semente:DadosDemonstracao=true e banco sem temporadas): 1 temporada, 10 jogadores com decks
 ///   e 3 rodadas encerradas em 2 etapas.
 /// </summary>
@@ -49,6 +50,13 @@ public static class SemeadorBanco
             log.LogWarning("Nenhum admin cadastrado. Defina Admin__Email e Admin__Senha.");
         }
 
+        if (!await banco.Regulamentos.AnyAsync())
+        {
+            banco.Regulamentos.Add(new Regulamento { Conteudo = RegulamentoInicial.Html.Trim(), AlteradoEm = agora, AlteradoPor = "inicial" });
+            await banco.SaveChangesAsync();
+            log.LogInformation("Regulamento inicial (Tratado dos Quinhentos) criado.");
+        }
+
         if (configuracao.GetValue<bool>("Semente:DadosDemonstracao") && !await banco.Temporadas.AnyAsync())
         {
             await SemearDemonstracaoAsync(banco, agora);
@@ -63,6 +71,9 @@ public static class SemeadorBanco
             Nome = "Temporada 1",
             DataInicio = DateOnly.FromDateTime(agora.AddDays(-21)),
             Ativa = true,
+            // Aviso da página inicial: próxima etapa daqui a uma semana, 14h em Brasília (17h UTC); listas até a véspera.
+            ProximaEtapaEm = DateOnly.FromDateTime(agora.AddDays(7)).ToDateTime(new TimeOnly(17, 0), DateTimeKind.Utc),
+            PrazoListas = DateOnly.FromDateTime(agora.AddDays(6)),
         };
         banco.Temporadas.Add(temporada);
 

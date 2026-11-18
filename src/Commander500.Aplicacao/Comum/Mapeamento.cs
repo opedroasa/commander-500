@@ -10,8 +10,9 @@ namespace Commander500.Aplicacao.Comum;
 /// <summary>Converte entidades do domínio nos objetos de resposta da API (mapeamento manual, sem AutoMapper).</summary>
 public static class Mapeamento
 {
-    public static TemporadaResposta ParaResposta(this Temporada t, int quantidadeRodadas, int quantidadeEtapas) =>
-        new(t.Id, t.Nome, t.DataInicio, t.DataFim, t.Ativa, t.ConfiguracaoTravada, ConfiguracaoTemporada.De(t), quantidadeRodadas, quantidadeEtapas);
+    public static TemporadaResposta ParaResposta(this Temporada t, int quantidadeRodadas, int quantidadeEtapas, int? idEtapaFinal) =>
+        new(t.Id, t.Nome, t.DataInicio, t.DataFim, t.Ativa, t.ConfiguracaoTravada, ConfiguracaoTemporada.De(t), quantidadeRodadas, quantidadeEtapas,
+            t.ProximaEtapaEm is { } em ? DateTime.SpecifyKind(em, DateTimeKind.Utc) : null, t.PrazoListas, idEtapaFinal);
 
     public static ComandanteResposta ParaResposta(this Comandante c) => new(c.Id, c.Nome, c.UrlArte, c.UrlImagem, c.IdentidadeCor);
 
@@ -56,7 +57,8 @@ public static class Mapeamento
             r.EncerradaEm,
             participacoes.Select(p => p.ParaResposta()).ToList(),
             participacoes.Where(p => p.Bye).Select(p => p.ParaResposta()).ToList(),
-            mesas);
+            mesas,
+            r.Etapa?.Final ?? false, r.Etapa?.RodadasPrevistas, FluxoRodada.EhRetroativa(r, FusoLoja.Hoje(agoraUtc)));
     }
 
     public static EstatisticaComandanteResposta ParaResposta(this LinhaEstatisticaComandante linha, IReadOnlyDictionary<int, Comandante> comandantes) => new(

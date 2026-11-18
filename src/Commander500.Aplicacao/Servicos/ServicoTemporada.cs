@@ -16,17 +16,19 @@ public class ServicoTemporada(IContextoBanco banco, TimeProvider relogio)
     {
         var linhas = await banco.Temporadas.AsNoTracking()
             .OrderByDescending(t => t.Ativa).ThenByDescending(t => t.DataInicio).ThenByDescending(t => t.Id)
-            .Select(t => new { Temporada = t, Rodadas = t.Rodadas.Count, Etapas = t.Etapas.Count })
+            .Select(t => new { Temporada = t, Rodadas = t.Rodadas.Count, Etapas = t.Etapas.Count(e => !e.Final),
+                IdFinal = t.Etapas.Where(e => e.Final).Select(e => (int?)e.Id).FirstOrDefault() })
             .ToListAsync();
-        return linhas.Select(l => l.Temporada.ParaResposta(l.Rodadas, l.Etapas)).ToList();
+        return linhas.Select(l => l.Temporada.ParaResposta(l.Rodadas, l.Etapas, l.IdFinal)).ToList();
     }
 
     public async Task<TemporadaResposta> Obter(int id)
     {
         var linha = await banco.Temporadas.AsNoTracking().Where(t => t.Id == id)
-            .Select(t => new { Temporada = t, Rodadas = t.Rodadas.Count, Etapas = t.Etapas.Count }).FirstOrDefaultAsync()
+            .Select(t => new { Temporada = t, Rodadas = t.Rodadas.Count, Etapas = t.Etapas.Count(e => !e.Final),
+                IdFinal = t.Etapas.Where(e => e.Final).Select(e => (int?)e.Id).FirstOrDefault() }).FirstOrDefaultAsync()
             ?? throw new NaoEncontradoException($"Temporada {id} não encontrada.");
-        return linha.Temporada.ParaResposta(linha.Rodadas, linha.Etapas);
+        return linha.Temporada.ParaResposta(linha.Rodadas, linha.Etapas, linha.IdFinal);
     }
 
     public async Task<TemporadaResposta> Criar(TemporadaEnvio envio)
@@ -57,6 +59,15 @@ public class ServicoTemporada(IContextoBanco banco, TimeProvider relogio)
         return await Obter(id);
     }
 
+    /// <summary>Aviso da próxima etapa (data/hora e prazo das listas) mostrado na página inicial.</summary>
+    public async Task<TemporadaResposta> DefinirProximaEtapa(int id, ProximaEtapaEnvio envio)
+    {
+        var temporada = await Buscar(id);
+        RegrasTemporada.DefinirProximaEtapa(temporada, envio.ProximaEtapaEm?.UtcDateTime, envio.PrazoListas);
+        await banco.SalvarAsync();
+        return await Obter(id);
+    }
+
     /// <summary>Encerra a temporada: fica inativa e a data de fim vira hoje (se vazia). Rodadas abertas precisam ser encerradas ou excluídas antes.</summary>
     public async Task<TemporadaResposta> Encerrar(int id)
     {
@@ -78,17 +89,20 @@ public class ServicoTemporada(IContextoBanco banco, TimeProvider relogio)
         await banco.SalvarAsync();
     }
 
+    /// <summary>Ranking no modo da temporada (soma das rodadas ou colocação nas etapas + final).</summary>
     public async Task<IReadOnlyList<LinhaRanking>> Ranking(int id)
     {
         var temporada = await BuscarSomenteLeitura(id);
+        var etapas = await banco.Etapas.AsNoTracking().Where(e => e.IdTemporada == id).ToListAsync();
+        // Todas as rodadas: as abertas dizem se a etapa já terminou (só etapa concluída dá pontos por colocação).
         var rodadas = await banco.Rodadas.AsNoTracking()
-            .Where(r => r.IdTemporada == id && r.Situacao == SituacaoRodada.Encerrada)
+            .Where(r => r.IdTemporada == id)
             .Include(r => r.Participacoes).Include(r => r.Mesas).ThenInclude(m => m.Cadeiras)
             .AsSplitQuery().ToListAsync();
         var idsJogadores = rodadas.SelectMany(r => r.Participacoes).Select(p => p.IdJogador).Distinct().ToList();
         var nomes = await banco.Jogadores.Where(j => idsJogadores.Contains(j.Id))
             .ToDictionaryAsync(j => j.Id, j => j.Apelido == null ? j.Nome : $"{j.Nome} ({j.Apelido})");
-        return CalculadoraRanking.Calcular(temporada, rodadas, nomes);
+        return CalculadoraRankingTemporada.Calcular(temporada, etapas, rodadas, nomes);
     }
 
     public async Task<IReadOnlyList<RodadaResposta>> Rodadas(int id)

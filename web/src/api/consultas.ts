@@ -3,8 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { requisitar } from './cliente'
 import type {
-  CartaScryfall, ConfiguracaoTemporada, Deck, DeckEnvio, DetalheEtapa, EstatisticaComandante, Etapa, Jogador, JogadorEnvio,
-  LinhaRanking, PerfilJogador, ResultadoMesa, Rodada, SituacaoDeck, Temporada, TemporadaEnvio,
+  CartaScryfall, ConfiguracaoTemporada, Deck, DeckEnvio, DetalheEtapa, EstatisticaComandante, Etapa, FinalistaSugerido, Jogador,
+  JogadorEnvio, LinhaRanking, PerfilJogador, Regulamento, ResultadoMesa, Rodada, SituacaoDeck, Temporada, TemporadaEnvio,
 } from './tipos'
 
 /** Chaves do cache. Alterar algo "invalida" as chaves relacionadas para a tela buscar de novo. */
@@ -21,6 +21,8 @@ export const chaves = {
   decks: ['decks'] as const,
   estatisticasComandantes: (idTemporada: number | null) => ['estatisticas-comandantes', idTemporada ?? 'todas'] as const,
   perfil: (id: number, idTemporada: number | null) => ['perfil', id, idTemporada ?? 'todas'] as const,
+  regulamento: ['regulamento'] as const,
+  finalistas: (id: number, quantidade: number) => ['temporadas', id, 'finalistas', quantidade] as const,
 }
 
 // ---------- Consultas públicas
@@ -46,6 +48,8 @@ export const usePerfilJogador = (id: number | null, idTemporada: number | null) 
     queryFn: () => requisitar<PerfilJogador>(`/api/jogadores/${id}/perfil${idTemporada ? `?idTemporada=${idTemporada}` : ''}`),
     enabled: id != null,
   })
+export const useRegulamento = () =>
+  useQuery({ queryKey: chaves.regulamento, queryFn: () => requisitar<Regulamento>('/api/regulamento') })
 export const useRodadasTemporada = (id: number) =>
   useQuery({ queryKey: chaves.rodadasTemporada(id), queryFn: () => requisitar<Rodada[]>(`/api/temporadas/${id}/rodadas`) })
 
@@ -70,6 +74,14 @@ export const useBuscaScryfall = (texto: string) =>
     enabled: texto.trim().length >= 2,
     staleTime: 60 * 60_000,
     retry: false,
+  })
+
+/** Top N do ranking com o último deck de cada um (sugestão para a mesa final). */
+export const useFinalistasSugeridos = (idTemporada: number, quantidade: number, habilitada: boolean) =>
+  useQuery({
+    queryKey: chaves.finalistas(idTemporada, quantidade),
+    queryFn: () => requisitar<FinalistaSugerido[]>(`/api/temporadas/${idTemporada}/finalistas?quantidade=${quantidade}`),
+    enabled: habilitada,
   })
 
 // ---------- Alterações
@@ -116,6 +128,11 @@ export const useSalvarTemporada = () =>
 export const useSalvarConfiguracaoTemporada = () =>
   useAlteracao(({ id, configuracao }: { id: number; configuracao: ConfiguracaoTemporada }) =>
     requisitar<Temporada>(`/api/temporadas/${id}/configuracao`, { metodo: 'PUT', corpo: configuracao }), [chaves.temporadas])
+export const useDefinirProximaEtapa = () =>
+  useAlteracao(({ id, proximaEtapaEm, prazoListas }: { id: number; proximaEtapaEm: string | null; prazoListas: string | null }) =>
+    requisitar<Temporada>(`/api/temporadas/${id}/proxima-etapa`, { metodo: 'PUT', corpo: { proximaEtapaEm, prazoListas } }), [chaves.temporadas])
+export const useSalvarRegulamento = () =>
+  useAlteracao((conteudo: string) => requisitar<Regulamento>('/api/regulamento', { metodo: 'PUT', corpo: { conteudo } }), [chaves.regulamento])
 export const useEncerrarTemporada = () =>
   useAlteracao((id: number) => requisitar<Temporada>(`/api/temporadas/${id}/encerrar`, { metodo: 'POST' }), [chaves.temporadas])
 export const useExcluirTemporada = () =>
@@ -123,9 +140,20 @@ export const useExcluirTemporada = () =>
 
 // Rodadas — toda alteração invalida temporadas (ranking, histórico, contagens), rodadas, etapas, estatísticas e perfis.
 const chavesRodada = [chaves.temporadas, ['rodadas'], ['etapas'], ['estatisticas-comandantes'], ['perfil']] as const
+/** Nova rodada: pela data (cria a etapa se for um dia novo; data passada = retroativa) ou numa etapa existente (idEtapa). */
 export const useCriarRodada = () =>
-  useAlteracao(({ idTemporada, data, duracaoMinutos }: { idTemporada: number; data: string | null; duracaoMinutos: number | null }) =>
-    requisitar<Rodada>(`/api/temporadas/${idTemporada}/rodadas`, { metodo: 'POST', corpo: { data, duracaoMinutos } }), chavesRodada)
+  useAlteracao(({ idTemporada, data, duracaoMinutos, idEtapa }: { idTemporada: number; data: string | null; duracaoMinutos: number | null; idEtapa?: number | null }) =>
+    requisitar<Rodada>(`/api/temporadas/${idTemporada}/rodadas`, { metodo: 'POST', corpo: { data, duracaoMinutos, idEtapa: idEtapa ?? null } }), chavesRodada)
+export const useCriarMesaFinal = () =>
+  useAlteracao(({ idTemporada, ...corpo }: { idTemporada: number; data: string; quantidadeRodadas: number; finalistas: { idJogador: number; idDeck: number }[] }) =>
+    requisitar<Rodada>(`/api/temporadas/${idTemporada}/mesa-final`, { metodo: 'POST', corpo }), chavesRodada)
+/** Mesas montadas à mão: cada mesa = ids de participação na ordem das cadeiras. Quem ficar de fora é bye. */
+export const useMontarMesas = () =>
+  useAlteracao(({ idRodada, mesas }: { idRodada: number; mesas: number[][] }) =>
+    requisitar<Rodada>(`/api/rodadas/${idRodada}/mesas`, { metodo: 'PUT', corpo: { mesas } }), chavesRodada)
+export const useDefinirQuemComeca = () =>
+  useAlteracao(({ idMesa, idParticipacao }: { idMesa: number; idParticipacao: number }) =>
+    requisitar<Rodada>(`/api/mesas/${idMesa}/quem-comeca`, { metodo: 'PUT', corpo: { idParticipacao } }), chavesRodada)
 export const useDefinirParticipantes = () =>
   useAlteracao(({ idRodada, participantes }: { idRodada: number; participantes: { idJogador: number; idDeck: number }[] }) =>
     requisitar<Rodada>(`/api/rodadas/${idRodada}/participantes`, { metodo: 'PUT', corpo: participantes }), chavesRodada)

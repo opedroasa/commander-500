@@ -69,7 +69,7 @@ export function ListaComandantes({ linhas, ordem, limite, minimoPartidas }: {
               <div className="text-base font-bold tabular-nums text-amber-300">{valorPrincipal}</div>
               {ordem !== 'percentual' && (
                 <div className="text-[0.7rem] text-zinc-500">
-                  {linha.percentualVitoria === null ? (minimoPartidas ? `% após ${minimoPartidas}` : '–') : `${formatarPercentual(linha.percentualVitoria)} vit.`}
+                  {linha.percentualVitoria === null ? (minimoPartidas ? `% após ${minimoPartidas} partidas` : '–') : `${formatarPercentual(linha.percentualVitoria)} de vitória`}
                 </div>
               )}
             </div>

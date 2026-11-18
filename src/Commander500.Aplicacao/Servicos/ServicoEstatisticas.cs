@@ -20,6 +20,10 @@ public class ServicoEstatisticas(IContextoBanco banco, TimeProvider relogio)
             .ComResultados()
             .ToListAsync();
 
+    /// <summary>Rodadas de todas as situações (as abertas dizem se a etapa terminou; os cálculos só pontuam as encerradas).</summary>
+    private Task<List<Rodada>> TodasRodadas() =>
+        banco.Rodadas.AsNoTracking().ComResultados().ToListAsync();
+
     private Task<Dictionary<int, string>> NomesJogadores() =>
         banco.Jogadores.AsNoTracking().ToDictionaryAsync(j => j.Id, j => j.Apelido == null ? j.Nome : $"{j.Nome} ({j.Apelido})");
 
@@ -57,9 +61,13 @@ public class ServicoEstatisticas(IContextoBanco banco, TimeProvider relogio)
             ?? throw new NaoEncontradoException($"Jogador {idJogador} não encontrado.");
 
         var temporadas = await banco.Temporadas.AsNoTracking().ToListAsync();
-        var etapas = await banco.Etapas.AsNoTracking().Include(e => e.Rodadas).ToListAsync();
-        var rodadas = await RodadasEncerradas();
+        var etapas = await banco.Etapas.AsNoTracking().ToListAsync();
+        var todas = await TodasRodadas();
+        var rodadas = todas.Where(r => r.Situacao == SituacaoRodada.Encerrada).ToList();
         var nomes = await NomesJogadores();
+
+        IReadOnlyList<LinhaRanking> RankingDa(Temporada t) => CalculadoraRankingTemporada.Calcular(
+            t, etapas.Where(e => e.IdTemporada == t.Id), todas.Where(r => r.IdTemporada == t.Id), nomes);
 
         // Geral: os mesmos contadores do ranking, em todas as rodadas encerradas (pontos são por temporada, então não aparecem aqui).
         var linhaGeral = CalculadoraRanking.Calcular(new Temporada(), rodadas, nomes).FirstOrDefault(l => l.IdJogador == idJogador);
@@ -67,23 +75,23 @@ public class ServicoEstatisticas(IContextoBanco banco, TimeProvider relogio)
         TemporadaJogadorResposta? naTemporada = null;
         if (idTemporada is { } id && temporadas.FirstOrDefault(t => t.Id == id) is { } temporada)
         {
-            var linha = CalculadoraRanking.Calcular(temporada, rodadas.Where(r => r.IdTemporada == id), nomes).FirstOrDefault(l => l.IdJogador == idJogador);
+            var linha = RankingDa(temporada).FirstOrDefault(l => l.IdJogador == idJogador);
             naTemporada = new TemporadaJogadorResposta(temporada.Id, temporada.Nome, linha?.Posicao, linha?.Pontos ?? 0, Estatisticas(linha));
         }
 
-        // Campeão da temporada = 1º lugar de uma temporada encerrada (inativa).
+        // Campeão da temporada = 1º lugar (com a final somada) de uma temporada encerrada (inativa).
         var temporadasVencidas = temporadas
             .Where(t => !t.Ativa)
-            .Where(t => CalculadoraRanking.Calcular(t, rodadas.Where(r => r.IdTemporada == t.Id), nomes).FirstOrDefault()?.IdJogador == idJogador)
+            .Where(t => RankingDa(t).Any(l => l.Posicao == 1 && l.IdJogador == idJogador))
             .OrderByDescending(t => t.DataInicio)
             .Select(t => new ReferenciaTemporadaResposta(t.Id, t.Nome))
             .ToList();
 
-        // Campeão da etapa = posição 1 (empatados dividem) de uma etapa com todas as rodadas encerradas.
-        var rodadasPorId = rodadas.ToDictionary(r => r.Id);
+        // Campeão da etapa = posição 1 (empatados dividem) de uma etapa com todas as rodadas encerradas (a final não conta aqui).
+        var rodadasPorEtapa = todas.GroupBy(r => r.IdEtapa).ToDictionary(g => g.Key, g => g.ToList());
         var etapasVencidas = etapas
-            .Where(EstaConcluida)
-            .Where(e => CalculadoraRankingEtapa.Calcular(e.Rodadas.Select(r => rodadasPorId[r.Id]), nomes)
+            .Where(e => !e.Final && rodadasPorEtapa.TryGetValue(e.Id, out var rs) && RegrasEtapa.EstaConcluida(rs))
+            .Where(e => CalculadoraRankingEtapa.Calcular(rodadasPorEtapa[e.Id], nomes, temporadas.First(t => t.Id == e.IdTemporada))
                 .Any(l => l.Posicao == 1 && l.IdJogador == idJogador))
             .OrderByDescending(e => e.Data)
             .Select(e => new ReferenciaEtapaResposta(e.Id, e.IdTemporada, temporadas.First(t => t.Id == e.IdTemporada).Nome, e.Numero, e.Data))
@@ -111,11 +119,31 @@ public class ServicoEstatisticas(IContextoBanco banco, TimeProvider relogio)
         var temporada = await banco.Temporadas.AsNoTracking().FirstOrDefaultAsync(t => t.Id == idTemporada)
                         ?? throw new NaoEncontradoException($"Temporada {idTemporada} não encontrada.");
         var etapas = await banco.Etapas.AsNoTracking().Where(e => e.IdTemporada == idTemporada).Include(e => e.Rodadas)
-            .OrderByDescending(e => e.Data).ToListAsync();
+            .OrderByDescending(e => e.Final).ThenByDescending(e => e.Data).ToListAsync();
         var rodadas = (await RodadasEncerradas(idTemporada)).ToDictionary(r => r.Id);
         var nomes = await NomesJogadores();
 
         return etapas.Select(e => ParaResposta(e, temporada, e.Rodadas.Where(r => rodadas.ContainsKey(r.Id)).Select(r => rodadas[r.Id]), nomes)).ToList();
+    }
+
+    /// <summary>
+    /// Mesa final: sugere os finalistas (top N do ranking) com o deck mais recente de cada um,
+    /// para o lojista conferir antes de formar a mesa.
+    /// </summary>
+    public async Task<IReadOnlyList<FinalistaSugeridoResposta>> SugerirFinalistas(int idTemporada, int quantidade)
+    {
+        var temporada = await banco.Temporadas.AsNoTracking().FirstOrDefaultAsync(t => t.Id == idTemporada)
+                        ?? throw new NaoEncontradoException($"Temporada {idTemporada} não encontrada.");
+        var etapas = await banco.Etapas.AsNoTracking().Where(e => e.IdTemporada == idTemporada).ToListAsync();
+        var todas = await banco.Rodadas.AsNoTracking().Where(r => r.IdTemporada == idTemporada).ComResultados().ToListAsync();
+        var ranking = CalculadoraRankingTemporada.Calcular(temporada, etapas, todas, await NomesJogadores());
+
+        // Deck usado na última rodada da temporada (ou o mais recente cadastrado).
+        var ultimoDeck = todas.OrderBy(r => r.Data).ThenBy(r => r.Numero).SelectMany(r => r.Participacoes)
+            .GroupBy(p => p.IdJogador).ToDictionary(g => g.Key, g => g.Last().IdDeck);
+        return ranking.Take(Math.Clamp(quantidade, 1, 16))
+            .Select(l => new FinalistaSugeridoResposta(l.Posicao, l.IdJogador, l.NomeJogador, l.Pontos, l.Empatado, ultimoDeck.GetValueOrDefault(l.IdJogador)))
+            .ToList();
     }
 
     /// <summary>Etapa com o ranking do dia e as rodadas.</summary>
@@ -128,17 +156,23 @@ public class ServicoEstatisticas(IContextoBanco banco, TimeProvider relogio)
             .Where(r => r.IdEtapa == idEtapa).OrderBy(r => r.Numero).ToListAsync();
         var nomes = await NomesJogadores();
 
-        var ranking = CalculadoraRankingEtapa.Calcular(rodadas, nomes);
-        return new DetalheEtapaResposta(ParaResposta(etapa, etapa.Temporada!, rodadas, nomes), ranking, rodadas.Select(r => r.ParaResposta(Agora)).ToList());
+        var temporada = etapa.Temporada!;
+        var porColocacao = temporada.ModoPontuacao == ModoPontuacao.ColocacaoNaEtapa;
+        var ranking = CalculadoraRankingEtapa.Calcular(rodadas, nomes, temporada)
+            .Select(l => new LinhaEtapaResposta(l, porColocacao ? temporada.PontosDaColocacao(l.Posicao) : null))
+            .ToList();
+        return new DetalheEtapaResposta(ParaResposta(etapa, temporada, rodadas, nomes), temporada.ModoPontuacao, ranking,
+            rodadas.Select(r => r.ParaResposta(Agora)).ToList());
     }
 
     private static EtapaResposta ParaResposta(Etapa etapa, Temporada temporada, IEnumerable<Rodada> rodadas, IReadOnlyDictionary<int, string> nomes)
     {
-        var lideres = CalculadoraRankingEtapa.Calcular(rodadas, nomes)
+        var lideres = CalculadoraRankingEtapa.Calcular(rodadas, nomes, temporada)
             .Where(l => l.Posicao == 1)
             .Select(l => new ReferenciaJogadorResposta(l.IdJogador, l.NomeJogador))
             .ToList();
         return new EtapaResposta(etapa.Id, etapa.IdTemporada, temporada.Nome, etapa.Numero, etapa.Data, etapa.Rodadas.Count,
-            etapa.Rodadas.Count(r => r.Situacao == SituacaoRodada.Encerrada), EstaConcluida(etapa), lideres);
+            etapa.Rodadas.Count(r => r.Situacao == SituacaoRodada.Encerrada), EstaConcluida(etapa), lideres,
+            etapa.Final, etapa.RodadasPrevistas);
     }
 }

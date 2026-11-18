@@ -2,8 +2,8 @@ import { ChevronDown, Crown, Handshake, Medal } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router'
 import { useEstatisticasComandantes, useEtapa, useEtapasTemporada, useRanking, useTemporada } from '../../api/consultas'
-import type { Etapa, Rodada, Temporada } from '../../api/tipos'
-import { Abas, CabecalhoPagina, CaixaErro, Carregando, SeloSituacaoRodada, Vazio } from '../../componentes/comum'
+import type { Etapa, ModoPontuacao, Rodada, Temporada } from '../../api/tipos'
+import { Abas, CabecalhoPagina, CaixaErro, Carregando, LegendaSiglas, SeloSituacaoRodada, Vazio } from '../../componentes/comum'
 import { JanelaPerfilJogador } from '../../componentes/JanelaPerfilJogador'
 import { CartoesArteComandante, ListaComandantes } from '../../componentes/RankingComandantes'
 import { rotuloOrdemComandantes, type OrdemComandantes } from '../../utilitarios/comandantes'
@@ -45,7 +45,7 @@ export function PaginaTemporada() {
         ]}
       />
       {aba === 'ranking' && <AbaRanking temporada={t} aoAbrirJogador={definirIdPerfil} />}
-      {aba === 'etapas' && <AbaEtapas idTemporada={t.id} aoAbrirJogador={definirIdPerfil} />}
+      {aba === 'etapas' && <AbaEtapas temporada={t} aoAbrirJogador={definirIdPerfil} />}
       {aba === 'comandantes' && <AbaComandantes temporada={t} />}
 
       <JanelaPerfilJogador idJogador={idPerfil} idTemporada={t.id} aoFechar={() => definirIdPerfil(null)} />
@@ -67,6 +67,8 @@ function AbaRanking({ temporada, aoAbrirJogador }: { temporada: Temporada; aoAbr
   if (ranking.isPending) return <Carregando />
   if (ranking.error) return <CaixaErro erro={ranking.error} aoTentarDeNovo={() => ranking.refetch()} />
   const c = temporada.configuracao
+  const porColocacao = c.modoPontuacao === 'ColocacaoNaEtapa'
+  const temFinal = ranking.data.some((l) => l.pontosFinal != null)
 
   return (
     <>
@@ -80,6 +82,9 @@ function AbaRanking({ temporada, aoAbrirJogador }: { temporada: Temporada; aoAbr
                 <th className="px-2 py-2.5 text-left sm:px-3">#</th>
                 <th className="px-1.5 py-2.5 text-left">Jogador</th>
                 <th className="px-1.5 py-2.5 text-right" title="Pontos">Pts</th>
+                {porColocacao && <th className="px-1.5 py-2.5 text-right" title="Etapas terminadas em 1º lugar">1º</th>}
+                {porColocacao && <th className="px-1.5 py-2.5 text-right" title="Etapas disputadas">Et</th>}
+                {temFinal && <th className="px-1.5 py-2.5 text-right" title="Pontos da mesa final (já somados)">Final</th>}
                 <th className="px-1.5 py-2.5 text-right" title="Vitórias">V</th>
                 <th className="px-1.5 py-2.5 text-right" title="Empates">E</th>
                 <th className="px-1.5 py-2.5 text-right" title="Byes">B</th>
@@ -90,11 +95,14 @@ function AbaRanking({ temporada, aoAbrirJogador }: { temporada: Temporada; aoAbr
             <tbody>
               {ranking.data.map((l) => (
                 <tr key={l.idJogador} className="border-b border-zinc-800/60 last:border-0">
-                  <td className="px-2 py-2.5 sm:px-3"><SeloPosicao posicao={l.posicao} /></td>
+                  <td className="px-2 py-2.5 sm:px-3"><SeloPosicao posicao={l.posicao} empatado={l.empatado} /></td>
                   <td className="max-w-[7.5rem] px-1.5 py-2.5 sm:max-w-none">
                     <BotaoJogador id={l.idJogador} nome={l.nomeJogador} aoAbrir={aoAbrirJogador} />
                   </td>
                   <td className="px-1.5 py-2.5 text-right text-base font-bold text-amber-300">{l.pontos}</td>
+                  {porColocacao && <td className="px-1.5 py-2.5 text-right">{l.primeirosLugares}</td>}
+                  {porColocacao && <td className="px-1.5 py-2.5 text-right">{l.etapas}</td>}
+                  {temFinal && <td className="px-1.5 py-2.5 text-right text-amber-200">{l.pontosFinal != null ? `+${l.pontosFinal}` : '–'}</td>}
                   <td className="px-1.5 py-2.5 text-right">{l.vitorias}</td>
                   <td className="px-1.5 py-2.5 text-right">{l.empates}</td>
                   <td className="px-1.5 py-2.5 text-right">{l.byes}</td>
@@ -106,15 +114,36 @@ function AbaRanking({ temporada, aoAbrirJogador }: { temporada: Temporada; aoAbr
           </table>
         </div>
       )}
+      {ranking.data.length > 0 && (
+        <LegendaSiglas className="mt-2" itens={[
+          ['#', 'posição (número repetido = empatados)'],
+          ['Pts', 'pontos na temporada'],
+          ...(porColocacao ? [['1º', 'etapas terminadas em 1º lugar'], ['Et', 'etapas disputadas (sem a final)']] as [string, string][] : []),
+          ...(temFinal ? [['Final', 'pontos da mesa final (já somados em Pts)']] as [string, string][] : []),
+          ['V', 'vitórias'], ['E', 'empates'], ['B', 'byes'], ['P', 'partidas jogadas (bye não conta)'], ['%V', 'vitórias ÷ partidas'],
+        ]} />
+      )}
       <p className="mt-2 text-xs text-zinc-500">Toque no nome do jogador para ver o perfil.</p>
       <details className="mt-3 text-sm text-zinc-400">
         <summary className="cursor-pointer select-none text-zinc-300">Como funciona a pontuação</summary>
         <ul className="mt-2 list-disc space-y-1 pl-5">
-          <li>Vitória: <b>{c.pontosVitoria}</b> pts (só o vencedor da mesa pontua).</li>
-          <li>Empate / tempo esgotado: <b>{c.pontosEmpate}</b> pt para cada jogador da mesa.</li>
-          <li>Bye: <b>{c.pontosBye1}</b> pts (1 de fora), <b>{c.pontosBye2}</b> (2 de fora), <b>{c.pontosBye3}</b> (3 de fora). Bye não conta como partida.</li>
-          <li>Desempate: pontos → {c.criteriosDesempate.map((criterio) => rotuloCriterioDesempate[criterio].toLowerCase()).join(' → ')}{c.criteriosDesempate.length ? ' → ' : ''}nome.</li>
-          <li>V = vitórias, E = empates, B = byes, P = partidas jogadas, %V = vitórias ÷ partidas.</li>
+          {porColocacao ? (
+            <>
+              <li>
+                Cada etapa concluída vale pontos pela colocação no dia: {c.pontosPorColocacao.map((p, i) => `${i + 1}º ${p}`).join(', ')} e
+                {' '}{c.pontosDemaisColocados} para os demais. Empatados ganham os pontos da melhor posição.
+              </li>
+              <li>A colocação na etapa sai dos pontos das rodadas (abaixo), com quem teve bye abaixo de quem venceu a mesa e confronto direto entre empatados.</li>
+              <li>A mesa final do top 4 soma pontos da mesma forma. Campeão = 1º no total.</li>
+              <li>Desempate: mais 1º lugares → mais etapas disputadas → melhor colocação na última etapa em que os empatados jogaram juntos.</li>
+            </>
+          ) : (
+            <li>Desempate: pontos → {c.criteriosDesempate.map((criterio) => rotuloCriterioDesempate[criterio].toLowerCase()).join(' → ')}{c.criteriosDesempate.length ? ' → ' : ''}nome.</li>
+          )}
+          <li>
+            Rodada: vitória <b>{c.pontosVitoria}</b>, empate <b>{c.pontosEmpate}</b> (cada), derrota <b>{c.pontosDerrota}</b>,
+            bye <b>{c.pontosBye1}</b>/<b>{c.pontosBye2}</b>/<b>{c.pontosBye3}</b> (1/2/3 de fora). Quem faltou não pontua. Bye não conta como partida.
+          </li>
         </ul>
       </details>
     </>
@@ -138,29 +167,39 @@ function SeloPosicao({ posicao, empatado = false }: { posicao: number; empatado?
 
 // ---------------------------------------------------------------- Etapas
 
-function AbaEtapas({ idTemporada, aoAbrirJogador }: { idTemporada: number; aoAbrirJogador: (id: number) => void }) {
-  const etapas = useEtapasTemporada(idTemporada)
+function AbaEtapas({ temporada, aoAbrirJogador }: { temporada: Temporada; aoAbrirJogador: (id: number) => void }) {
+  const etapas = useEtapasTemporada(temporada.id)
   if (etapas.isPending) return <Carregando />
   if (etapas.error) return <CaixaErro erro={etapas.error} aoTentarDeNovo={() => etapas.refetch()} />
   if (etapas.data.length === 0) return <Vazio>Nenhuma etapa ainda.</Vazio>
   return (
     <div className="space-y-2">
-      {etapas.data.map((e, indice) => <CartaoEtapa key={e.id} etapa={e} abertaInicialmente={indice === 0} aoAbrirJogador={aoAbrirJogador} />)}
+      {etapas.data.map((e, indice) => (
+        <CartaoEtapa key={e.id} etapa={e} modo={temporada.configuracao.modoPontuacao} abertaInicialmente={indice === 0} aoAbrirJogador={aoAbrirJogador} />
+      ))}
       <p className="pt-2 text-xs text-zinc-500">
-        Ranking da etapa: mais vitórias (bye conta como vitória) → quem teve bye fica abaixo → confronto direto entre os empatados → persistindo, dividem a posição.
+        Ranking da etapa: mais pontos nas rodadas → quem teve bye fica abaixo → confronto direto entre os empatados → persistindo, dividem a posição.
       </p>
     </div>
   )
 }
 
-function CartaoEtapa({ etapa, abertaInicialmente, aoAbrirJogador }: { etapa: Etapa; abertaInicialmente: boolean; aoAbrirJogador: (id: number) => void }) {
+function CartaoEtapa({ etapa, modo, abertaInicialmente, aoAbrirJogador }: {
+  etapa: Etapa
+  modo: ModoPontuacao
+  abertaInicialmente: boolean
+  aoAbrirJogador: (id: number) => void
+}) {
   const [aberta, definirAberta] = useState(abertaInicialmente)
   const detalhe = useEtapa(etapa.id, aberta)
+  const porColocacao = modo === 'ColocacaoNaEtapa'
 
   return (
     <div className="cartao">
       <button className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 p-4 text-left" onClick={() => definirAberta(!aberta)} aria-expanded={aberta}>
-        <span className="font-display text-lg font-bold text-zinc-100">Etapa {etapa.numero}</span>
+        <span className="flex items-center gap-1.5 font-display text-lg font-bold text-zinc-100">
+          {etapa.final ? <><Crown className="size-4 text-amber-400" aria-hidden />Mesa final</> : `Etapa ${etapa.numero}`}
+        </span>
         <span className="text-sm text-zinc-400">{formatarData(etapa.data)} · {etapa.quantidadeRodadas} rodada{etapa.quantidadeRodadas === 1 ? '' : 's'}</span>
         <span className="ml-auto flex items-center gap-2">
           {etapa.lideres.length > 0 && (
@@ -188,30 +227,39 @@ function CartaoEtapa({ etapa, abertaInicialmente, aoAbrirJogador }: { etapa: Eta
                       <tr className="border-b border-zinc-800">
                         <th className="px-1.5 py-2 text-left">#</th>
                         <th className="px-1.5 py-2 text-left">Jogador</th>
+                        <th className="px-1.5 py-2 text-right" title="Pontos nas rodadas da etapa">Pts</th>
                         <th className="px-1.5 py-2 text-right" title="Vitórias na etapa (bye conta)">V</th>
                         <th className="px-1.5 py-2 text-right" title="Byes">B</th>
                         <th className="px-1.5 py-2 text-right" title="Empates">E</th>
                         <th className="px-1.5 py-2 text-right" title="Vitórias em confronto direto entre empatados">CD</th>
+                        {porColocacao && <th className="px-1.5 py-2 text-right" title="Pontos na temporada pela colocação">Temp.</th>}
                       </tr>
                     </thead>
                     <tbody>
-                      {detalhe.data.ranking.map((l) => (
+                      {detalhe.data.ranking.map(({ linha: l, pontosTemporada }) => (
                         <tr key={l.idJogador} className="border-b border-zinc-800/60 last:border-0">
                           <td className="px-1.5 py-2"><SeloPosicao posicao={l.posicao} empatado={l.empatado} /></td>
                           <td className="max-w-[9rem] px-1.5 py-2 sm:max-w-none">
                             <span className="flex items-center gap-1.5">
                               <BotaoJogador id={l.idJogador} nome={l.nomeJogador} aoAbrir={aoAbrirJogador} />
-                              {l.empatado && l.vitorias > 0 && <span className="shrink-0 rounded bg-zinc-800 px-1 text-[0.6rem] uppercase text-zinc-400">empate</span>}
+                              {l.empatado && l.pontos > 0 && <span className="shrink-0 rounded bg-zinc-800 px-1 text-[0.6rem] uppercase text-zinc-400">empate</span>}
                             </span>
                           </td>
-                          <td className="px-1.5 py-2 text-right text-base font-bold text-amber-300">{l.vitorias}</td>
+                          <td className="px-1.5 py-2 text-right text-base font-bold text-amber-300">{l.pontos}</td>
+                          <td className="px-1.5 py-2 text-right">{l.vitorias}</td>
                           <td className="px-1.5 py-2 text-right">{l.byes}</td>
                           <td className="px-1.5 py-2 text-right">{l.empates}</td>
                           <td className="px-1.5 py-2 text-right text-zinc-400">{l.vitoriasConfrontoDireto || '–'}</td>
+                          {porColocacao && <td className="px-1.5 py-2 text-right text-amber-200">{etapa.concluida ? `+${pontosTemporada}` : `(${pontosTemporada})`}</td>}
                         </tr>
                       ))}
                     </tbody>
                   </table>
+                  <LegendaSiglas className="mt-2" itens={[
+                    ['Pts', 'pontos nas rodadas da etapa'], ['V', 'vitórias (bye conta como vitória)'], ['B', 'byes'], ['E', 'empates'],
+                    ['CD', 'vitórias em confronto direto contra os empatados'],
+                    ...(porColocacao ? [['Temp.', 'pontos que a colocação vale na temporada (entre parênteses enquanto a etapa não termina)']] as [string, string][] : []),
+                  ]} />
                 </div>
               )}
               <div className="space-y-2">

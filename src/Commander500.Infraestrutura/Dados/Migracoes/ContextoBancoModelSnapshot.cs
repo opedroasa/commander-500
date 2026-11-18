@@ -67,7 +67,7 @@ namespace Commander500.Infraestrutura.Dados.Migracoes
 
                     b.ToTable("Cadeiras", t =>
                         {
-                            t.HasCheckConstraint("CK_Cadeiras_Numero", "\"Numero\" BETWEEN 1 AND 4");
+                            t.HasCheckConstraint("CK_Cadeiras_Numero", "\"Numero\" BETWEEN 1 AND 6");
                         });
                 });
 
@@ -184,18 +184,24 @@ namespace Commander500.Infraestrutura.Dados.Migracoes
                     b.Property<DateOnly>("Data")
                         .HasColumnType("date");
 
+                    b.Property<bool>("Final")
+                        .HasColumnType("boolean");
+
                     b.Property<int>("IdTemporada")
                         .HasColumnType("integer");
 
                     b.Property<int>("Numero")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("RodadasPrevistas")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("IdTemporada", "Data")
-                        .IsUnique();
-
                     b.HasIndex("IdTemporada", "Numero");
+
+                    b.HasIndex("IdTemporada", "Data", "Final")
+                        .IsUnique();
 
                     b.ToTable("Etapas");
                 });
@@ -299,6 +305,30 @@ namespace Commander500.Infraestrutura.Dados.Migracoes
                     b.ToTable("Participacoes");
                 });
 
+            modelBuilder.Entity("Commander500.Dominio.Entidades.Regulamento", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("AlteradoEm")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("AlteradoPor")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Conteudo")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Regulamentos");
+                });
+
             modelBuilder.Entity("Commander500.Dominio.Entidades.Rodada", b =>
                 {
                     b.Property<int>("Id")
@@ -374,6 +404,11 @@ namespace Commander500.Infraestrutura.Dados.Migracoes
                     b.Property<int>("MinutosPadraoRodada")
                         .HasColumnType("integer");
 
+                    b.Property<string>("ModoPontuacao")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
                     b.Property<string>("Nome")
                         .IsRequired()
                         .HasMaxLength(120)
@@ -388,11 +423,28 @@ namespace Commander500.Infraestrutura.Dados.Migracoes
                     b.Property<int>("PontosBye3")
                         .HasColumnType("integer");
 
+                    b.Property<int>("PontosDemaisColocados")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PontosDerrota")
+                        .HasColumnType("integer");
+
                     b.Property<int>("PontosEmpate")
                         .HasColumnType("integer");
 
+                    b.Property<string>("PontosPorColocacao")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<int>("PontosVitoria")
                         .HasColumnType("integer");
+
+                    b.Property<DateOnly?>("PrazoListas")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime?>("ProximaEtapaEm")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("TurnosExtrasAposTempo")
                         .HasColumnType("integer");

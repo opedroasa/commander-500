@@ -13,6 +13,7 @@ namespace Commander500.Aplicacao.Servicos;
 public class ServicoRodada(IContextoBanco banco, TimeProvider relogio, IGeradorAleatorio gerador)
 {
     private DateTime Agora => relogio.GetUtcNow().UtcDateTime;
+    private DateOnly Hoje => FusoLoja.Hoje(Agora);
 
     private async Task<Rodada> Carregar(int id) =>
         await banco.Rodadas.ComTudo().FirstOrDefaultAsync(r => r.Id == id)
@@ -38,10 +39,20 @@ public class ServicoRodada(IContextoBanco banco, TimeProvider relogio, IGeradorA
         if (duracao is < 1 or > FluxoRodada.DuracaoMaximaMinutos)
             throw new DadosInvalidosException($"Duração deve estar entre 1 e {FluxoRodada.DuracaoMaximaMinutos} minutos.");
 
-        var data = envio.Data ?? DateOnly.FromDateTime(Agora);
-        var etapas = await banco.Etapas.Where(e => e.IdTemporada == idTemporada).ToListAsync();
-        var etapa = RegrasEtapa.Resolver(temporada, etapas, data);
-        if (etapa.Id == 0) banco.Etapas.Add(etapa);
+        Etapa etapa;
+        if (envio.IdEtapa is { } idEtapa)
+        {
+            // Mais uma rodada numa etapa que já existe (botão "nova rodada" e rodadas da mesa final).
+            etapa = await banco.Etapas.FirstOrDefaultAsync(e => e.Id == idEtapa && e.IdTemporada == idTemporada)
+                    ?? throw new NaoEncontradoException($"Etapa {idEtapa} não encontrada nesta temporada.");
+        }
+        else
+        {
+            var etapas = await banco.Etapas.Where(e => e.IdTemporada == idTemporada).ToListAsync();
+            etapa = RegrasEtapa.Resolver(temporada, etapas, envio.Data ?? Hoje);
+            if (etapa.Id == 0) banco.Etapas.Add(etapa);
+        }
+        var data = etapa.Data;
 
         var ultimoNumero = await banco.Rodadas.Where(r => r.IdTemporada == idTemporada).MaxAsync(r => (int?)r.Numero) ?? 0;
         var rodada = new Rodada
@@ -68,10 +79,42 @@ public class ServicoRodada(IContextoBanco banco, TimeProvider relogio, IGeradorA
         return await Recarregar(rodada.Id);
     }
 
-    public async Task<RodadaResposta> DefinirParticipantes(int id, IReadOnlyList<ParticipanteInformado> participantes)
+    /// <summary>
+    /// Mesa final do top 4 (modo por colocação): cria a etapa final e a primeira rodada com os finalistas presentes.
+    /// Depois é o fluxo normal: sortear (ou montar à mão), iniciar, resultados, encerrar e "nova rodada" até completar.
+    /// </summary>
+    public async Task<RodadaResposta> CriarMesaFinal(int idTemporada, MesaFinalEnvio envio)
     {
-        var rodada = await Carregar(id);
+        var temporada = await banco.Temporadas.FindAsync(idTemporada) ?? throw new NaoEncontradoException($"Temporada {idTemporada} não encontrada.");
+        var duracao = envio.DuracaoMinutos ?? temporada.MinutosPadraoRodada;
+        if (duracao is < 1 or > FluxoRodada.DuracaoMaximaMinutos)
+            throw new DadosInvalidosException($"Duração deve estar entre 1 e {FluxoRodada.DuracaoMaximaMinutos} minutos.");
+        var finalistas = envio.Finalistas ?? [];
+        await ValidarParticipantes(finalistas);
 
+        var etapas = await banco.Etapas.Where(e => e.IdTemporada == idTemporada).ToListAsync();
+        var rodadasDaTemporada = await banco.Rodadas.Where(r => r.IdTemporada == idTemporada).ToListAsync();
+        var final = RegrasEtapa.CriarFinal(temporada, etapas, rodadasDaTemporada, envio.Data, envio.QuantidadeRodadas, finalistas.Count);
+        banco.Etapas.Add(final);
+
+        var rodada = new Rodada
+        {
+            IdTemporada = idTemporada,
+            Etapa = final,
+            Numero = (rodadasDaTemporada.Count == 0 ? 0 : rodadasDaTemporada.Max(r => r.Numero)) + 1,
+            Data = final.Data,
+            DuracaoMinutos = duracao,
+            Situacao = SituacaoRodada.Rascunho,
+        };
+        FluxoRodada.DefinirParticipantes(rodada, finalistas);
+        banco.Rodadas.Add(rodada);
+        await banco.SalvarAsync();
+        return await Recarregar(rodada.Id);
+    }
+
+    /// <summary>Confere se jogadores e decks existem e se cada deck é do jogador.</summary>
+    private async Task ValidarParticipantes(IReadOnlyList<ParticipanteInformado> participantes)
+    {
         var idsDecks = participantes.Select(p => p.IdDeck).Distinct().ToList();
         var decks = await banco.Decks.Where(d => idsDecks.Contains(d.Id)).ToDictionaryAsync(d => d.Id);
         var idsJogadores = participantes.Select(p => p.IdJogador).Distinct().ToList();
@@ -83,7 +126,12 @@ public class ServicoRodada(IContextoBanco banco, TimeProvider relogio, IGeradorA
             if (deck.IdJogador != participante.IdJogador)
                 throw new DadosInvalidosException($"O deck '{deck.Nome}' não pertence a {jogadores[participante.IdJogador].Nome}.");
         }
+    }
 
+    public async Task<RodadaResposta> DefinirParticipantes(int id, IReadOnlyList<ParticipanteInformado> participantes)
+    {
+        var rodada = await Carregar(id);
+        await ValidarParticipantes(participantes);
         FluxoRodada.DefinirParticipantes(rodada, participantes);
         await banco.SalvarAsync();
         return await Recarregar(id);
@@ -104,6 +152,37 @@ public class ServicoRodada(IContextoBanco banco, TimeProvider relogio, IGeradorA
         return await Recarregar(id);
     }
 
+    /// <summary>Mesas montadas à mão (rodada retroativa ou sem sorteio). Quem não estiver em mesa fica de bye.</summary>
+    public async Task<RodadaResposta> MontarMesas(int id, MontagemMesasEnvio envio)
+    {
+        var rodada = await Carregar(id);
+        FluxoRodada.MontarMesas(rodada, envio.Mesas ?? []);
+        await banco.SalvarAsync();
+        return await Recarregar(id);
+    }
+
+    public async Task<RodadaResposta> DefinirQuemComeca(int idMesa, QuemComecaEnvio envio)
+    {
+        var idRodada = await banco.Mesas.Where(m => m.Id == idMesa).Select(m => (int?)m.IdRodada).FirstOrDefaultAsync()
+            ?? throw new NaoEncontradoException($"Mesa {idMesa} não encontrada.");
+        var rodada = await Carregar(idRodada);
+        var mesa = rodada.Mesas.Single(m => m.Id == idMesa);
+        FluxoRodada.DefinirQuemComeca(rodada, mesa, envio.IdParticipacao);
+
+        // O banco não deixa duas cadeiras com o mesmo número na mesa (índice único) e girar as cadeiras troca os números
+        // entre si. Por isso, numa transação: apaga as cadeiras da mesa e grava de novo já na ordem nova.
+        var novas = mesa.Cadeiras.Select(c => new Cadeira { IdMesa = mesa.Id, IdParticipacao = c.IdParticipacao, Numero = c.Numero }).ToList();
+        await banco.EmTransacaoAsync(async () =>
+        {
+            banco.Cadeiras.RemoveRange(mesa.Cadeiras.ToList());
+            await banco.SalvarAsync();
+            banco.LimparRastreamento();
+            banco.Cadeiras.AddRange(novas);
+            await banco.SalvarAsync();
+        });
+        return await Recarregar(idRodada);
+    }
+
     public async Task<RodadaResposta> Iniciar(int id, int? duracaoMinutos)
     {
         var rodada = await Carregar(id);
@@ -118,7 +197,7 @@ public class ServicoRodada(IContextoBanco banco, TimeProvider relogio, IGeradorA
             ?? throw new NaoEncontradoException($"Mesa {idMesa} não encontrada.");
         var rodada = await Carregar(idRodada);
         var mesa = rodada.Mesas.Single(m => m.Id == idMesa);
-        FluxoRodada.RegistrarResultado(rodada, mesa, envio.Resultado, envio.IdParticipacaoVencedora, Agora, usuario);
+        FluxoRodada.RegistrarResultado(rodada, mesa, envio.Resultado, envio.IdParticipacaoVencedora, Agora, usuario, Hoje);
         await banco.SalvarAsync();
         return await Recarregar(idRodada);
     }
@@ -126,7 +205,7 @@ public class ServicoRodada(IContextoBanco banco, TimeProvider relogio, IGeradorA
     public async Task<RodadaResposta> Encerrar(int id)
     {
         var rodada = await Carregar(id);
-        FluxoRodada.Encerrar(rodada, Agora);
+        FluxoRodada.Encerrar(rodada, Agora, Hoje);
         await banco.SalvarAsync();
         return await Recarregar(id);
     }
@@ -137,7 +216,7 @@ public class ServicoRodada(IContextoBanco banco, TimeProvider relogio, IGeradorA
         FluxoRodada.GarantirQuePodeExcluir(rodada);
         banco.Rodadas.Remove(rodada);
 
-        // Era a última rodada da etapa → apaga a etapa vazia e renumera as outras.
+        // Era a última rodada da etapa (ou da final) → apaga a etapa vazia e renumera as outras.
         if (rodada.Etapa is { } etapa && etapa.Rodadas.All(r => r.Id == rodada.Id))
         {
             banco.Etapas.Remove(etapa);

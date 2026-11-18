@@ -8,9 +8,12 @@ namespace Commander500.Aplicacao.Modelos;
 public record LoginResposta(string Token, DateTime ExpiraEm, string Email);
 
 // ----- Temporadas
+/// <param name="ProximaEtapaEm">Próxima etapa marcada (UTC), para o aviso da página inicial.</param>
+/// <param name="IdEtapaFinal">Etapa da mesa final, quando já foi formada.</param>
 public record TemporadaResposta(
     int Id, string Nome, DateOnly DataInicio, DateOnly? DataFim, bool Ativa, bool ConfiguracaoTravada,
-    ConfiguracaoTemporada Configuracao, int QuantidadeRodadas, int QuantidadeEtapas);
+    ConfiguracaoTemporada Configuracao, int QuantidadeRodadas, int QuantidadeEtapas,
+    DateTime? ProximaEtapaEm, DateOnly? PrazoListas, int? IdEtapaFinal);
 
 // ----- Jogadores, decks e comandantes
 public record JogadorResposta(int Id, string Nome, string? Apelido, bool Ativo, DateTime DataCadastro, int QuantidadeDecks);
@@ -49,11 +52,24 @@ public record ReferenciaJogadorResposta(int Id, string Nome);
 
 /// <param name="Concluida">Todas as rodadas encerradas: ranking e vencedores são definitivos.</param>
 /// <param name="Lideres">Posição 1 (vários quando empatados).</param>
+/// <param name="Final">Mesa final do top 4.</param>
+/// <param name="RodadasPrevistas">Só na final: quantas rodadas os finalistas jogam.</param>
 public record EtapaResposta(
     int Id, int IdTemporada, string NomeTemporada, int Numero, DateOnly Data,
-    int QuantidadeRodadas, int RodadasEncerradas, bool Concluida, IReadOnlyList<ReferenciaJogadorResposta> Lideres);
+    int QuantidadeRodadas, int RodadasEncerradas, bool Concluida, IReadOnlyList<ReferenciaJogadorResposta> Lideres,
+    bool Final, int? RodadasPrevistas);
 
-public record DetalheEtapaResposta(EtapaResposta Etapa, IReadOnlyList<LinhaRankingEtapa> Ranking, IReadOnlyList<RodadaResposta> Rodadas);
+/// <summary>Linha do ranking da etapa + pontos que a colocação vale na temporada (só no modo por colocação).</summary>
+public record LinhaEtapaResposta(LinhaRankingEtapa Linha, int? PontosTemporada);
+
+public record DetalheEtapaResposta(EtapaResposta Etapa, ModoPontuacao ModoPontuacao, IReadOnlyList<LinhaEtapaResposta> Ranking,
+    IReadOnlyList<RodadaResposta> Rodadas);
+
+/// <param name="IdDeck">Deck da última rodada do jogador na temporada (0 = nenhum).</param>
+public record FinalistaSugeridoResposta(int Posicao, int IdJogador, string NomeJogador, int Pontos, bool Empatado, int IdDeck);
+
+// ----- Regulamento
+public record RegulamentoResposta(string Conteudo, DateTime? AlteradoEm, string? AlteradoPor);
 
 // ----- Rodadas
 public record ParticipacaoResposta(
@@ -71,8 +87,12 @@ public record CronometroResposta(DateTime IniciadaEm, int DuracaoMinutos, DateTi
 /// <param name="Numero">Sequencial na temporada.</param>
 /// <param name="NumeroNaEtapa">1, 2, 3… dentro da etapa.</param>
 /// <param name="AgoraServidor">Hora do servidor, para o timer do navegador acertar o relógio.</param>
+/// <param name="EtapaFinal">A rodada é da mesa final.</param>
+/// <param name="RodadasPrevistasEtapa">Só na final: quantas rodadas estão previstas.</param>
+/// <param name="Retroativa">Data passada: aceita resultados e encerramento sem iniciar o timer.</param>
 public record RodadaResposta(
     int Id, int IdTemporada, string NomeTemporada, int IdEtapa, int NumeroEtapa, int NumeroNaEtapa, int Numero, DateOnly Data,
     SituacaoRodada Situacao, string DescricaoSituacao, int DuracaoMinutos, int TurnosExtrasAposTempo,
     DateTime AgoraServidor, CronometroResposta? Cronometro, DateTime? EncerradaEm,
-    IReadOnlyList<ParticipacaoResposta> Participacoes, IReadOnlyList<ParticipacaoResposta> Byes, IReadOnlyList<MesaResposta> Mesas);
+    IReadOnlyList<ParticipacaoResposta> Participacoes, IReadOnlyList<ParticipacaoResposta> Byes, IReadOnlyList<MesaResposta> Mesas,
+    bool EtapaFinal, int? RodadasPrevistasEtapa, bool Retroativa);

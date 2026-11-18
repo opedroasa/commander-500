@@ -106,7 +106,7 @@ function TituloRodada({ rodada, tituloDaPagina = false }: { rodada: Rodada; titu
   const Titulo = tituloDaPagina ? 'h1' : 'h2'
   return (
     <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1">
-      <Titulo className="font-display text-2xl font-bold text-amber-100">Etapa {rodada.numeroEtapa} · Rodada {rodada.numeroNaEtapa}</Titulo>
+      <Titulo className="font-display text-2xl font-bold text-amber-100">{rodada.etapaFinal ? 'Mesa final' : `Etapa ${rodada.numeroEtapa}`} · Rodada {rodada.numeroNaEtapa}</Titulo>
       <SeloSituacaoRodada situacao={rodada.situacao} />
       <span className="w-full text-sm text-zinc-400 sm:w-auto">
         <Link to={`/temporadas/${rodada.idTemporada}`} className="hover:text-zinc-200 hover:underline">{rodada.nomeTemporada}</Link> · {formatarData(rodada.data)}

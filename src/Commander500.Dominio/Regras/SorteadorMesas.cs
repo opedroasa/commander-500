@@ -5,7 +5,8 @@ namespace Commander500.Dominio.Regras;
 /// <param name="Chave">Identificador escolhido por quem chama (ex.: posição da participação na lista).</param>
 /// <param name="ByesAnteriores">Quantos byes o jogador já teve na temporada.</param>
 /// <param name="UltimaCadeira">Cadeira (1–4) na rodada anterior da mesma etapa, para não repetir.</param>
-public record CandidatoSorteio(int Chave, int ByesAnteriores, int? UltimaCadeira = null);
+/// <param name="ByesNaEtapa">Byes que o jogador já teve nas outras rodadas da mesma etapa (dia). Pesa mais que os da temporada.</param>
+public record CandidatoSorteio(int Chave, int ByesAnteriores, int? UltimaCadeira = null, int ByesNaEtapa = 0);
 
 /// <param name="ChavesBye">Candidatos que ficaram fora das mesas.</param>
 /// <param name="Mesas">Cada mesa lista as chaves na ordem das cadeiras (posição 0 = cadeira 1, começa jogando).</param>
@@ -41,11 +42,13 @@ public static class SorteadorMesas
 
         var quantidadeByes = candidatos.Count % TamanhoMesa;
 
-        // Embaralha e depois ordena (de forma estável) pelos byes anteriores: quem tem menos bye vem primeiro
-        // e, entre empatados, a ordem é aleatória — ou seja, sorteio entre os que têm menos byes (spec 4.2).
+        // Embaralha e depois ordena (de forma estável): primeiro quem ainda não ficou de bye neste dia, depois quem tem
+        // menos byes na temporada. Entre empatados a ordem é aleatória — ou seja, sorteio entre os que têm menos byes (spec 4.2).
+        // Só repete bye no mesmo dia quando todos os presentes já ficaram de fora.
         var embaralhados = candidatos.ToList();
         Embaralhar(embaralhados, gerador);
-        var byes = embaralhados.OrderBy(c => c.ByesAnteriores).Take(quantidadeByes).Select(c => c.Chave).ToList();
+        var byes = embaralhados.OrderBy(c => c.ByesNaEtapa).ThenBy(c => c.ByesAnteriores)
+            .Take(quantidadeByes).Select(c => c.Chave).ToList();
         var jogando = embaralhados.Where(c => !byes.Contains(c.Chave)).ToList();
 
         var temHistorico = (paresAnteriores?.Count ?? 0) > 0 || jogando.Any(c => c.UltimaCadeira is not null);
