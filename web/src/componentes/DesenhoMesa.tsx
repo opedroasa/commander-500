@@ -3,14 +3,14 @@ import type { Cadeira, Mesa } from '../api/tipos'
 import { rotuloSituacaoDeck } from '../utilitarios/formatacao'
 
 /**
- * Mesa retangular da loja: dois jogadores de cada lado.
- * Ordem dos turnos em sentido horário: 1 (em cima à esquerda, começa) → 2 (em cima à direita) → 3 (embaixo à direita) → 4 (embaixo à esquerda).
+ * Mesa retangular da loja: metade dos jogadores de cada lado (2 + 2 na mesa de 4).
+ * Ordem dos turnos em sentido horário: 1 (em cima à esquerda, começa) → … → em cima à direita → embaixo à direita → … → embaixo à esquerda.
+ * Mesas montadas à mão podem ter de 2 a 6 cadeiras.
  */
-const posicaoDaCadeira: Record<number, string> = {
-  1: 'col-start-1 row-start-1',
-  2: 'col-start-2 row-start-1',
-  3: 'col-start-2 row-start-3',
-  4: 'col-start-1 row-start-3',
+function posicaoDaCadeira(numero: number, colunas: number) {
+  return numero <= colunas
+    ? { gridRowStart: 1, gridColumnStart: numero }
+    : { gridRowStart: 3, gridColumnStart: colunas - (numero - colunas) + 1 }
 }
 
 interface Propriedades {
@@ -24,16 +24,17 @@ interface Propriedades {
   mostrarAvisoDeck?: boolean
 }
 
-/** Desenho da mesa (pod) com as 4 cadeiras, jogador e comandante em cada uma (spec 4.3). */
+/** Desenho da mesa (pod) com as cadeiras (normalmente 4), jogador e comandante em cada uma (spec 4.3). */
 export function DesenhoMesa({ mesa, idsJogadoresDestacados, aoClicarCadeira, idParticipacaoEscolhida, mostrarAvisoDeck = true }: Propriedades) {
   const idVencedor = idParticipacaoEscolhida !== undefined ? idParticipacaoEscolhida : mesa.idParticipacaoVencedora
   const decidida = mesa.resultado !== 'Pendente' || idParticipacaoEscolhida != null
   const empate = mesa.resultado === 'Empate' && idParticipacaoEscolhida == null
+  const colunas = Math.max(2, Math.ceil(mesa.cadeiras.length / 2))
 
   return (
-    <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
+    <div className="grid gap-1.5 sm:gap-2" style={{ gridTemplateColumns: `repeat(${colunas}, minmax(0, 1fr))` }}>
       {/* o tampo: feltro verde com borda de madeira, entre os dois lados */}
-      <div className="col-span-2 row-start-2 flex h-16 items-center justify-center gap-3 rounded-lg border-[5px] border-[#6b3f1d] bg-[radial-gradient(ellipse_at_center,#1f5c3a,#0f3a24_75%)] shadow-[inset_0_0_18px_rgba(0,0,0,.55),0_2px_6px_rgba(0,0,0,.35)]">
+      <div style={{ gridColumn: '1 / -1' }} className="row-start-2 flex h-16 items-center justify-center gap-3 rounded-lg border-[5px] border-[#6b3f1d] bg-[radial-gradient(ellipse_at_center,#1f5c3a,#0f3a24_75%)] shadow-[inset_0_0_18px_rgba(0,0,0,.55),0_2px_6px_rgba(0,0,0,.35)]">
         <span className="font-display text-xs uppercase tracking-[0.3em] text-[#cfe8d6]/80">Mesa</span>
         <span className="font-display text-3xl font-bold leading-none text-white">{mesa.numero}</span>
         {empate && (
@@ -47,7 +48,7 @@ export function DesenhoMesa({ mesa, idsJogadoresDestacados, aoClicarCadeira, idP
         <CartaoCadeira
           key={cadeira.numero}
           cadeira={cadeira}
-          className={posicaoDaCadeira[cadeira.numero] ?? ''}
+          posicao={posicaoDaCadeira(cadeira.numero, colunas)}
           vencedor={idVencedor === cadeira.participacao.id && !empate}
           apagada={decidida && !empate && idVencedor !== cadeira.participacao.id && idVencedor != null}
           destacada={idsJogadoresDestacados?.has(cadeira.participacao.idJogador) ?? false}
@@ -59,9 +60,9 @@ export function DesenhoMesa({ mesa, idsJogadoresDestacados, aoClicarCadeira, idP
   )
 }
 
-function CartaoCadeira({ cadeira, className, vencedor, apagada, destacada, aoClicar, mostrarAvisoDeck }: {
+function CartaoCadeira({ cadeira, posicao, vencedor, apagada, destacada, aoClicar, mostrarAvisoDeck }: {
   cadeira: Cadeira
-  className: string
+  posicao: { gridRowStart: number; gridColumnStart: number }
   vencedor: boolean
   apagada: boolean
   destacada: boolean
@@ -78,7 +79,8 @@ function CartaoCadeira({ cadeira, className, vencedor, apagada, destacada, aoCli
       onClick={aoClicar}
       aria-pressed={aoClicar ? vencedor : undefined}
       aria-label={aoClicar ? `Marcar ${participacao.nomeJogador} como vencedor` : undefined}
-      className={`${className} relative isolate flex min-h-[5.5rem] min-w-0 flex-col justify-end overflow-hidden rounded-xl border p-2 text-left transition ${
+      style={posicao}
+      className={`relative isolate flex min-h-[5.5rem] min-w-0 flex-col justify-end overflow-hidden rounded-xl border p-2 text-left transition ${
         vencedor
           ? 'border-amber-400 shadow-[0_0_0_1px_rgba(242,101,34,.6),0_0_18px_rgba(242,101,34,.3)]'
           : destacada

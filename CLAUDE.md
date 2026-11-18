@@ -17,27 +17,29 @@ e o JSON que vem do Scryfall. Estilo igual ao da Gestão Rastreio Wiki (sem o pr
 | Presença na rodada | `Participacao` (com `Bye`) | `Participacoes` |
 | Mesa / cadeira | `Mesa`, `Cadeira` | `Mesas`, `Cadeiras` |
 | Usuário do lojista | `Administrador` | `Administradores` |
-| Situações | `SituacaoRodada` (Rascunho, Sorteada, EmAndamento, Encerrada), `SituacaoDeck` (Pendente, Aprovado, Reprovado), `ResultadoMesa` (Pendente, Vitoria, Empate), `CriterioDesempate` | gravadas como texto |
+| Regulamento (o "tratado") | `Regulamento` (HTML do editor visual) | `Regulamentos` |
+| Situações | `SituacaoRodada` (Rascunho, Sorteada, EmAndamento, Encerrada), `SituacaoDeck` (Pendente, Aprovado, Reprovado), `ResultadoMesa` (Pendente, Vitoria, Empate), `CriterioDesempate`, `ModoPontuacao` (ColocacaoNaEtapa, SomaDasRodadas) | gravadas como texto |
 
 ## Estrutura (arquitetura limpa)
 
 ```
 Commander500.sln
 src/Commander500.Dominio/          não depende de nada
-  Entidades/                       Temporada, Jogador, Comandante, Deck, Etapa, Rodada (+ Participacao, Mesa, Cadeira), Administrador
-  Enumeradores/                    SituacaoRodada, SituacaoDeck, ResultadoMesa, CriterioDesempate
-  Regras/                          regras puras e testáveis: FluxoRodada (máquina de estados), SorteadorMesas,
-                                   CalculadoraRanking, CalculadoraRankingEtapa, CalculadoraEstatisticasComandante,
-                                   RegrasEtapa, RegrasTemporada, GeradorAleatorio
-  Comum/                           Excecoes (RegraNegocio, DadosInvalidos, NaoEncontrado, ServicoIndisponivel), NomeComandante
+  Entidades/                       Temporada, Jogador, Comandante, Deck, Etapa, Rodada (+ Participacao, Mesa, Cadeira), Administrador, Regulamento
+  Enumeradores/                    SituacaoRodada, SituacaoDeck, ResultadoMesa, CriterioDesempate, ModoPontuacao
+  Regras/                          regras puras e testáveis: FluxoRodada (máquina de estados, mesas à mão, quem começa),
+                                   SorteadorMesas, CalculadoraRanking (soma das rodadas), CalculadoraRankingEtapa,
+                                   CalculadoraRankingTemporada (escolhe o modo; colocação + final), CalculadoraEstatisticasComandante,
+                                   RegrasEtapa (etapas por data, mesa final), RegrasTemporada, GeradorAleatorio
+  Comum/                           Excecoes (RegraNegocio, DadosInvalidos, NaoEncontrado, ServicoIndisponivel), NomeComandante, FusoLoja
 src/Commander500.Aplicacao/        casos de uso (serviços de aplicação, sem MediatR)
   Servicos/                        ServicoTemporada, ServicoRodada, ServicoJogador, ServicoDeck, ServicoComandante,
-                                   ServicoEstatisticas, ServicoAutenticacao
+                                   ServicoEstatisticas, ServicoAutenticacao, ServicoRegulamento
   Modelos/                         Envios.cs (o que o site manda) e Respostas.cs (o que a Api devolve)
   Interfaces/                      IContextoBanco, IClienteScryfall, IServicoSenha, IGeradorToken (implementados na Infraestrutura)
   Comum/                           Mapeamento (entidade → resposta), ConsultasRodada (Includes)
 src/Commander500.Infraestrutura/   EF Core + PostgreSQL e serviços técnicos
-  Dados/                           ContextoBanco, Configuracoes/, Migracoes/, SemeadorBanco, StringConexao
+  Dados/                           ContextoBanco, Configuracoes/, Migracoes/, SemeadorBanco, RegulamentoInicial (texto do tratado), StringConexao
   Scryfall/                        ClienteScryfall (cache + 100 ms entre chamadas), ServicoEnriquecimentoScryfall (rotina em 2º plano)
   Seguranca/                       OpcoesJwt, GeradorTokenJwt, ServicoSenha
 src/Commander500.Api/              Program.cs, Endpoints/ (EndpointsPublicos, EndpointsAdmin), Comum/TratadorErros
@@ -46,10 +48,12 @@ web/                               React 19 + Vite + TS + Tailwind v4, mobile-fi
   src/api/                         cliente.ts (fetch + JWT), tipos.ts (espelha Modelos/), consultas.ts (TanStack Query)
   src/autenticacao/                ContextoAutenticacao (login do admin)
   src/componentes/                 DesenhoMesa (mesa retangular), Cronometro, QuadroRodada, Layout (logo + tema), ArteComandante,
-                                   RankingComandantes, SeletorComandante (busca Scryfall), JanelaDeck, JanelaPerfilJogador, comum.tsx
-  src/paginas/publico/             PaginaInicial (banner da temporada), PaginaTemporada (ranking/etapas/comandantes),
-                                   PaginaComandantes, PaginasAoVivo (Ao vivo + Rodada)
-  src/paginas/admin/               PaginaLogin, PaginaEtapasRodadas, PaginaConducaoRodada, PaginaJogadores, PaginaDecks, PaginaTemporadas
+                                   RankingComandantes, SeletorComandante (busca Scryfall), JanelaDeck, JanelaPerfilJogador,
+                                   MontagemMesas (mesas à mão + quem começa), EditorRegulamento (TipTap), comum.tsx
+  src/paginas/publico/             PaginaInicial (banner da temporada + próxima etapa), PaginaTemporada (ranking/etapas/comandantes),
+                                   PaginaComandantes, PaginasAoVivo (Ao vivo + Rodada), PaginaRegras
+  src/paginas/admin/               PaginaLogin, PaginaEtapasRodadas, PaginaConducaoRodada, PaginaJogadores, PaginaDecks,
+                                   PaginaTemporadas (pontuação, próxima etapa, mesa final), PaginaEditarRegras
   src/utilitarios/                 formatacao, relogio, tema, comandantes
 docker-compose.yml                 Postgres local (serviço "banco") + perfil "api" opcional
 Dockerfile                         imagem da Api (contexto = raiz do repo)
@@ -131,9 +135,9 @@ A porta 5080 também é usada pela Gestão Rastreio Wiki (outro projeto do Pedro
 - Estatísticas de comandante usam os comandantes **atuais** do deck (editar um deck altera o histórico dele).
 - **Etapa** = um dia de liga dentro da temporada, com 1+ rodadas. É criada automaticamente pela data da rodada
   (`RegrasEtapa`), numerada por data; apagar a última rodada de uma etapa apaga a etapa.
-  Ranking da etapa (`CalculadoraRankingEtapa`, prêmio do dia): vitórias ↓ (**bye conta como vitória**) → byes ↑
-  (quem teve bye fica abaixo) → confronto direto ↓ (vitórias em mesas contra os outros empatados) → persistindo,
-  **dividem a posição**. Só rodadas encerradas contam.
+  Ranking da etapa (`CalculadoraRankingEtapa`): pontos das rodadas ↓ (vitória, empate, derrota e bye com os valores da
+  temporada) → byes ↑ (quem teve bye fica abaixo de quem venceu a mesa) → confronto direto ↓ (vitórias em mesas contra os
+  outros empatados) → persistindo, **dividem a posição**. Só rodadas encerradas contam.
 - **Comandantes vêm do Scryfall** (API pública gratuita, sem chave; respeitar User-Agent e ~10 req/s). Não há
   cadastro manual: o comandante é criado ao salvar um deck (pelo id do Scryfall, ou só pelo nome se o Scryfall
   estiver fora — o `ServicoEnriquecimentoScryfall` completa a arte depois). As imagens são do CDN do Scryfall.
@@ -150,5 +154,23 @@ A porta 5080 também é usada pela Gestão Rastreio Wiki (outro projeto do Pedro
 - Sorteio dentro da etapa (`HistoricoEtapa` + `SorteadorMesas`): tenta 300 arranjos aleatórios e fica com o que menos
   repete adversários das rodadas anteriores da etapa (peso alto) e cadeiras da última rodada (peso baixo).
   Nem sempre dá zero: com poucos jogadores algumas repetições são inevitáveis. A prioridade de bye não muda.
+- **Dois modos de pontuação** (`Temporada.ModoPontuacao`, decisão de 18/11/2026, tratado Art. 5º e 6º):
+  - `ColocacaoNaEtapa` (**padrão**): cada etapa tem ranking pelos pontos das rodadas (vitória/empate/derrota/bye); a colocação
+    vira pontos na temporada pela tabela `PontosPorColocacao` ("5,4,3,2") + `PontosDemaisColocados` (1). **Empatados ganham os
+    pontos da melhor posição.** Só etapa concluída (todas as rodadas encerradas) pontua. Desempate da temporada: mais 1º lugares →
+    mais etapas disputadas → melhor colocação na última etapa que os empatados disputaram juntos → persistindo, mesma posição.
+  - `SomaDasRodadas`: os pontos das rodadas somam direto (desempate pelos `CriteriosDesempate`).
+  - `PontosDerrota` = presença de quem jogou e perdeu (vale nos dois modos); quem faltou fica com 0.
+- **Mesa final** (só no modo por colocação): `Etapa.Final = true` + `RodadasPrevistas`. O lojista escolhe os finalistas (sugestão =
+  top 4), a data e quantas rodadas; a colocação na final soma pela mesma tabela. **Campeão = 1º no total depois da final**
+  (não o vencedor da mesa final). A final pode cair no mesmo dia de uma etapa (índice único é `IdTemporada, Data, Final`).
+- **Rodada retroativa** = data anterior a hoje no fuso da loja (`FusoLoja`, Brasília). Aceita resultado e encerramento direto
+  de `Sorteada`, sem timer. Mesas podem ser montadas à mão (2 a 6 cadeiras; quem fica de fora é bye) em qualquer rodada.
+- **Quem começa**: trocar o jogador que começa gira as cadeiras mantendo a ordem de jogo (o escolhido vira a cadeira 1).
+- **Bye no mesmo dia**: o sorteio prefere quem ainda não ficou de bye na etapa; só depois olha os byes da temporada.
+- Depois de encerrar uma rodada aparece "Registrar rodada N" (mesma etapa, mesmos presentes); na final para nas rodadas previstas.
+- **Próxima etapa**: `Temporada.ProximaEtapaEm` (UTC) e `PrazoListas` aparecem no banner da página inicial; não dependem da trava.
+- **Regulamento**: um registro com HTML do editor visual (TipTap), mostrado em `/regras` (sanitizado com DOMPurify) e editado
+  em `/admin/regras`. O semeador grava o texto do tratado quando o banco ainda não tem regulamento.
 - Arquitetura limpa com **serviços de aplicação** (sem MediatR) e banco **PostgreSQL** com nomes de tabela = nome do DbSet
   (sem `TB_`). Decisão do Pedro em 18/11/2026; as migrations recomeçaram do zero (`Inicial`).

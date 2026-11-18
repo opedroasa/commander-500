@@ -1,20 +1,21 @@
-import { AlertTriangle, Check, ExternalLink, Flag, Handshake, Pencil, Play, Search, Shuffle, Trash2, Users } from 'lucide-react'
+import { AlertTriangle, Check, ExternalLink, Flag, Handshake, LayoutGrid, Pencil, Play, Plus, Search, Shuffle, Trash2, Trophy, Users } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import {
-  useDecks, useDefinirParticipantes, useEncerrarRodada, useExcluirRodada, useIniciarRodada, useJogadores,
-  useRegistrarResultadoMesa, useRodada, useSortearRodada,
+  useCriarRodada, useDecks, useDefinirParticipantes, useEncerrarRodada, useExcluirRodada, useIniciarRodada, useJogadores,
+  useRegistrarResultadoMesa, useRodada, useRodadasTemporada, useSortearRodada,
 } from '../../api/consultas'
 import type { Deck, Mesa, Rodada } from '../../api/tipos'
 import { CaixaErro, Carregando, ErroEmLinha, SeloSituacaoDeck, SeloSituacaoRodada, Vazio } from '../../componentes/comum'
 import { Cronometro } from '../../componentes/Cronometro'
 import { DesenhoMesa } from '../../componentes/DesenhoMesa'
+import { MontagemMesas, SeletorQuemComeca } from '../../componentes/MontagemMesas'
 import { ListaByes } from '../../componentes/QuadroRodada'
 import { chaveBusca, formatarData, formatarDataHora, nomeComApelido, rotuloSituacaoDeck } from '../../utilitarios/formatacao'
 
 const passos = [
   { situacao: 'Rascunho', rotulo: 'Presentes' },
-  { situacao: 'Sorteada', rotulo: 'Sorteio' },
+  { situacao: 'Sorteada', rotulo: 'Mesas' },
   { situacao: 'EmAndamento', rotulo: 'Jogo' },
   { situacao: 'Encerrada', rotulo: 'Encerrada' },
 ] as const
@@ -26,12 +27,17 @@ export function PaginaConducaoRodada() {
   const navegar = useNavigate()
   const excluir = useExcluirRodada()
   const [editandoPresentes, definirEditandoPresentes] = useState(false)
+  const [montandoMesas, definirMontandoMesas] = useState(false)
 
   if (rodada.isPending) return <Carregando />
   if (rodada.error) return <CaixaErro erro={rodada.error} aoTentarDeNovo={() => rodada.refetch()} />
   const r = rodada.data
   const passoAtual = passos.findIndex((p) => p.situacao === r.situacao)
   const podeExcluir = r.situacao === 'Rascunho' || r.situacao === 'Sorteada'
+  const titulo = r.etapaFinal
+    ? `Mesa final · Rodada ${r.numeroNaEtapa}${r.rodadasPrevistasEtapa ? ` de ${r.rodadasPrevistasEtapa}` : ''}`
+    : `Etapa ${r.numeroEtapa} · Rodada ${r.numeroNaEtapa}`
+  const antesDoJogo = r.situacao === 'Rascunho' || r.situacao === 'Sorteada'
 
   async function confirmarExclusao() {
     if (!confirm(`Excluir a rodada ${r.numeroNaEtapa} da etapa ${r.numeroEtapa}? Os presentes e o sorteio serão perdidos.`)) return
@@ -42,8 +48,11 @@ export function PaginaConducaoRodada() {
   return (
     <>
       <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h1 className="font-display text-2xl font-bold text-amber-100">Etapa {r.numeroEtapa} · Rodada {r.numeroNaEtapa}</h1>
+        <h1 className="font-display text-2xl font-bold text-amber-100">{titulo}</h1>
         <SeloSituacaoRodada situacao={r.situacao} />
+        {r.retroativa && r.situacao !== 'Encerrada' && (
+          <span className="rounded-full bg-sky-950 px-2 py-0.5 text-xs text-sky-300" title="Data passada: lance os resultados e encerre, sem timer.">retroativa</span>
+        )}
         <span className="text-sm text-zinc-400">{r.nomeTemporada} · {formatarData(r.data)}</span>
         <div className="ml-auto flex gap-2">
           <Link to={`/rodadas/${r.id}`} target="_blank" className="botao-secundario botao-pequeno">
@@ -71,11 +80,21 @@ export function PaginaConducaoRodada() {
         ))}
       </ol>
 
-      {r.situacao === 'Rascunho' && <EditorPresentes rodada={r} aoConcluir={() => definirEditandoPresentes(false)} />}
+      {antesDoJogo && montandoMesas && (
+        <MontagemMesas rodada={r} aoConcluir={() => definirMontandoMesas(false)} aoCancelar={() => definirMontandoMesas(false)} />
+      )}
 
-      {r.situacao === 'Sorteada' && (editandoPresentes
-        ? <EditorPresentes rodada={r} aoConcluir={() => definirEditandoPresentes(false)} aoCancelar={() => definirEditandoPresentes(false)} />
-        : <PassoSorteio rodada={r} aoEditarPresentes={() => definirEditandoPresentes(true)} />)}
+      {r.situacao === 'Rascunho' && !montandoMesas && (
+        <EditorPresentes rodada={r} aoConcluir={() => definirEditandoPresentes(false)} aoMontarAMao={() => definirMontandoMesas(true)} />
+      )}
+
+      {r.situacao === 'Sorteada' && !montandoMesas && (editandoPresentes
+        ? <EditorPresentes rodada={r} aoConcluir={() => definirEditandoPresentes(false)} aoCancelar={() => definirEditandoPresentes(false)}
+            aoMontarAMao={() => { definirEditandoPresentes(false); definirMontandoMesas(true) }} />
+        : r.retroativa
+          // Rodada que já aconteceu: lança os resultados direto, sem timer.
+          ? <PassoJogo rodada={r} aoEditarPresentes={() => definirEditandoPresentes(true)} aoMontarAMao={() => definirMontandoMesas(true)} />
+          : <PassoSorteio rodada={r} aoEditarPresentes={() => definirEditandoPresentes(true)} aoMontarAMao={() => definirMontandoMesas(true)} />)}
 
       {(r.situacao === 'EmAndamento' || r.situacao === 'Encerrada') && <PassoJogo rodada={r} />}
     </>
@@ -84,7 +103,13 @@ export function PaginaConducaoRodada() {
 
 // ---------------------------------------------------------------- Passo 1: presentes + decks
 
-function EditorPresentes({ rodada, aoConcluir, aoCancelar }: { rodada: Rodada; aoConcluir: () => void; aoCancelar?: () => void }) {
+function EditorPresentes({ rodada, aoConcluir, aoCancelar, aoMontarAMao }: {
+  rodada: Rodada
+  aoConcluir: () => void
+  aoCancelar?: () => void
+  /** depois de salvar os presentes, abre a montagem manual das mesas */
+  aoMontarAMao: () => void
+}) {
   const jogadores = useJogadores()
   const decks = useDecks()
   const definirParticipantes = useDefinirParticipantes()
@@ -130,11 +155,12 @@ function EditorPresentes({ rodada, aoConcluir, aoCancelar }: { rodada: Rodada; a
     definirPresentes(new Map(presentes).set(idJogador, idDeck))
   }
 
-  async function salvar(eSortear: boolean) {
+  async function salvar(depois: 'nada' | 'sortear' | 'montar') {
     const participantes = [...presentes].map(([idJogador, idDeck]) => ({ idJogador, idDeck }))
     await definirParticipantes.mutateAsync({ idRodada: rodada.id, participantes })
-    if (eSortear) await sortear.mutateAsync(rodada.id)
+    if (depois === 'sortear') await sortear.mutateAsync(rodada.id)
     aoConcluir()
+    if (depois === 'montar') aoMontarAMao()
   }
 
   const ocupado = definirParticipantes.isPending || sortear.isPending
@@ -146,6 +172,11 @@ function EditorPresentes({ rodada, aoConcluir, aoCancelar }: { rodada: Rodada; a
         {rodada.situacao === 'Sorteada' && (
           <p className="w-full rounded-lg border border-amber-900 bg-amber-950/40 p-2 text-xs text-amber-200">
             Salvar alterações desfaz o sorteio atual — será preciso sortear de novo.
+          </p>
+        )}
+        {rodada.retroativa && (
+          <p className="w-full rounded-lg border border-sky-900 bg-sky-950/40 p-2 text-xs text-sky-200">
+            Rodada retroativa (data passada): marque quem jogou, monte as mesas como foram jogadas e lance os resultados — sem timer.
           </p>
         )}
         {rodada.situacao === 'Rascunho' && rodada.numeroNaEtapa > 1 && (
@@ -206,8 +237,11 @@ function EditorPresentes({ rodada, aoConcluir, aoCancelar }: { rodada: Rodada; a
             <ErroEmLinha erro={definirParticipantes.error ?? sortear.error} />
           </div>
           {aoCancelar && <button className="botao-discreto" onClick={aoCancelar} disabled={ocupado}>Cancelar</button>}
-          <button className="botao-secundario" onClick={() => salvar(false)} disabled={ocupado}>Salvar</button>
-          <button className="botao-primario" onClick={() => salvar(true)} disabled={ocupado || quantidade < 4}>
+          <button className="botao-secundario" onClick={() => salvar('nada')} disabled={ocupado}>Salvar</button>
+          <button className={rodada.retroativa ? 'botao-primario' : 'botao-secundario'} onClick={() => salvar('montar')} disabled={ocupado || quantidade < 2}>
+            <LayoutGrid className="size-4" aria-hidden /> Montar mesas à mão
+          </button>
+          <button className={rodada.retroativa ? 'botao-secundario' : 'botao-primario'} onClick={() => salvar('sortear')} disabled={ocupado || quantidade < 4}>
             <Shuffle className="size-4" aria-hidden /> {ocupado ? 'Salvando…' : 'Salvar e sortear'}
           </button>
         </div>
@@ -218,7 +252,7 @@ function EditorPresentes({ rodada, aoConcluir, aoCancelar }: { rodada: Rodada; a
 
 // ---------------------------------------------------------------- Passo 2: sorteio
 
-function PassoSorteio({ rodada, aoEditarPresentes }: { rodada: Rodada; aoEditarPresentes: () => void }) {
+function PassoSorteio({ rodada, aoEditarPresentes, aoMontarAMao }: { rodada: Rodada; aoEditarPresentes: () => void; aoMontarAMao: () => void }) {
   const sortear = useSortearRodada()
   const iniciar = useIniciarRodada()
   const [minutos, definirMinutos] = useState(rodada.duracaoMinutos)
@@ -243,6 +277,9 @@ function PassoSorteio({ rodada, aoEditarPresentes }: { rodada: Rodada; aoEditarP
           <button className="botao-secundario" onClick={sortearDeNovo} disabled={sortear.isPending}>
             <Shuffle className="size-4" aria-hidden /> Sortear novamente
           </button>
+          <button className="botao-secundario" onClick={aoMontarAMao}>
+            <LayoutGrid className="size-4" aria-hidden /> Montar à mão
+          </button>
           <button className="botao-secundario" onClick={aoEditarPresentes}>
             <Pencil className="size-4" aria-hidden /> Editar presentes
           </button>
@@ -262,7 +299,10 @@ function PassoSorteio({ rodada, aoEditarPresentes }: { rodada: Rodada; aoEditarP
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {rodada.mesas.map((mesa) => (
-          <section key={mesa.id} className="cartao p-3" aria-label={`Mesa ${mesa.numero}`}><DesenhoMesa mesa={mesa} /></section>
+          <section key={mesa.id} className="cartao p-3" aria-label={`Mesa ${mesa.numero}`}>
+            <DesenhoMesa mesa={mesa} />
+            <SeletorQuemComeca mesa={mesa} />
+          </section>
         ))}
       </div>
       <ListaByes rodada={rodada} />
@@ -281,7 +321,12 @@ function AvisoDecks({ nomes }: { nomes: string[] }) {
 
 // ---------------------------------------------------------------- Passos 3/4: jogo, resultados, encerrar
 
-function PassoJogo({ rodada }: { rodada: Rodada }) {
+function PassoJogo({ rodada, aoEditarPresentes, aoMontarAMao }: {
+  rodada: Rodada
+  /** só na rodada retroativa ainda não encerrada (o jogo pula o timer) */
+  aoEditarPresentes?: () => void
+  aoMontarAMao?: () => void
+}) {
   const encerrar = useEncerrarRodada()
   const pendentes = rodada.mesas.filter((m) => m.resultado === 'Pendente')
   const encerrada = rodada.situacao === 'Encerrada'
@@ -294,6 +339,16 @@ function PassoJogo({ rodada }: { rodada: Rodada }) {
     <section className="space-y-5">
       {!encerrada && rodada.cronometro && (
         <Cronometro cronometro={rodada.cronometro} agoraServidor={rodada.agoraServidor} turnosExtras={rodada.turnosExtrasAposTempo} />
+      )}
+
+      {encerrada && <SugestaoNovaRodada rodada={rodada} />}
+
+      {rodada.situacao === 'Sorteada' && (
+        <div className="cartao flex flex-wrap items-center gap-2 p-3 text-sm text-sky-200">
+          <span className="mr-auto">Rodada retroativa: lance o resultado de cada mesa e encerre. Não precisa iniciar o timer.</span>
+          {aoMontarAMao && <button className="botao-secundario botao-pequeno" onClick={aoMontarAMao}><LayoutGrid className="size-4" aria-hidden />Mudar mesas</button>}
+          {aoEditarPresentes && <button className="botao-secundario botao-pequeno" onClick={aoEditarPresentes}><Pencil className="size-4" aria-hidden />Editar presentes</button>}
+        </div>
       )}
 
       {encerrada ? (
@@ -371,10 +426,57 @@ function CartaoResultadoMesa({ rodada, mesa }: { rodada: Rodada; mesa: Mesa }) {
           </>
         )}
       </div>
+      {!encerrada && <SeletorQuemComeca mesa={mesa} />}
       {mesa.alteradaPor && !editando && (
         <p className="mt-1 text-[0.7rem] text-zinc-500">Registrado por {mesa.alteradaPor} em {formatarDataHora(mesa.alteradaEm)}</p>
       )}
       <ErroEmLinha erro={registrar.error} />
     </section>
+  )
+}
+
+/**
+ * Depois de encerrar: sugere registrar a próxima rodada na mesma etapa (já com os mesmos presentes, que o lojista
+ * ajusta). Na mesa final, para quando completa as rodadas previstas.
+ */
+function SugestaoNovaRodada({ rodada }: { rodada: Rodada }) {
+  const criar = useCriarRodada()
+  const rodadas = useRodadasTemporada(rodada.idTemporada)
+  const navegar = useNavigate()
+  if (!rodadas.data) return null
+
+  // Já existe rodada depois desta na etapa? Então não sugere de novo.
+  const temSeguinte = rodadas.data.some((r) => r.idEtapa === rodada.idEtapa && r.numeroNaEtapa > rodada.numeroNaEtapa)
+  if (temSeguinte) return null
+
+  const finalCompleta = rodada.etapaFinal && rodada.rodadasPrevistasEtapa != null && rodada.numeroNaEtapa >= rodada.rodadasPrevistasEtapa
+  if (finalCompleta) {
+    return (
+      <div className="cartao flex flex-wrap items-center gap-3 border-amber-700 p-4">
+        <Trophy className="size-6 text-amber-400" aria-hidden />
+        <span className="mr-auto text-sm text-zinc-200">Mesa final concluída! Os pontos da colocação já entraram no ranking.</span>
+        <Link className="botao-primario" to={`/temporadas/${rodada.idTemporada}`}>Ver ranking</Link>
+      </div>
+    )
+  }
+
+  async function registrar() {
+    const nova = await criar.mutateAsync({ idTemporada: rodada.idTemporada, data: null, duracaoMinutos: rodada.duracaoMinutos, idEtapa: rodada.idEtapa })
+    navegar(`/admin/rodadas/${nova.id}`)
+  }
+
+  const proxima = rodada.numeroNaEtapa + 1
+  return (
+    <div className="cartao flex flex-wrap items-center gap-3 border-amber-700/70 p-4">
+      <span className="mr-auto text-sm text-zinc-200">
+        {rodada.etapaFinal
+          ? `Próxima: rodada ${proxima} de ${rodada.rodadasPrevistasEtapa} da mesa final, com os mesmos finalistas.`
+          : `Vai ter mais uma rodada nesta etapa? Os presentes desta rodada já vêm marcados — é só desmarcar quem foi embora.`}
+      </span>
+      <button className="botao-primario" onClick={registrar} disabled={criar.isPending}>
+        <Plus className="size-4" aria-hidden /> Registrar rodada {proxima}
+      </button>
+      <div className="w-full"><ErroEmLinha erro={criar.error} /></div>
+    </div>
   )
 }

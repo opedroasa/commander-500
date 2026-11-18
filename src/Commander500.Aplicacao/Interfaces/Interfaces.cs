@@ -19,9 +19,13 @@ public interface IContextoBanco
     DbSet<Mesa> Mesas { get; }
     DbSet<Cadeira> Cadeiras { get; }
     DbSet<Administrador> Administradores { get; }
+    DbSet<Regulamento> Regulamentos { get; }
 
     /// <summary>Grava no banco tudo o que foi alterado (uma transação).</summary>
     Task<int> SalvarAsync(CancellationToken cancelamento = default);
+
+    /// <summary>Executa várias gravações como uma só: se alguma falhar, nenhuma vale.</summary>
+    Task EmTransacaoAsync(Func<Task> acao, CancellationToken cancelamento = default);
 
     /// <summary>Esquece os objetos carregados, para a próxima consulta vir fresca do banco.</summary>
     void LimparRastreamento();

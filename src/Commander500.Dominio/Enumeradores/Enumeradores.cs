@@ -16,3 +16,13 @@ public enum ResultadoMesa { Pendente, Vitoria, Empate }
 /// O nome do jogador é sempre o último critério.
 /// </summary>
 public enum CriterioDesempate { Vitorias, MenosPartidas, MaisPartidas, Empates, PercentualVitoria }
+
+/// <summary>Como os pontos da temporada são formados.</summary>
+public enum ModoPontuacao
+{
+    /// <summary>Padrão. Cada etapa tem o próprio ranking (pontos das rodadas) e a temporada soma os pontos da colocação
+    /// em cada etapa (tabela configurável, ex.: 1º 5, 2º 4, 3º 3, 4º 2, demais 1). Permite a mesa final do top 4.</summary>
+    ColocacaoNaEtapa,
+    /// <summary>Os pontos de cada rodada (vitória, empate, derrota, bye) somam direto no ranking da temporada.</summary>
+    SomaDasRodadas,
+}

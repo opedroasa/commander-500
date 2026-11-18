@@ -139,3 +139,23 @@ html[data-tema="claro"] {
 @utility botao-pequeno { @apply min-h-8 px-3 py-1 text-xs; }
 @utility cartao { @apply rounded-2xl border border-zinc-800 bg-zinc-900/60; }
 @utility rotulo { @apply mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-400; }
+
+/* Texto do regulamento (HTML do editor visual): mesmo visual na página pública e dentro do editor. */
+@layer components {
+  .texto-regulamento { @apply space-y-3 text-[0.95rem] leading-relaxed text-zinc-200; }
+  .texto-regulamento h1 { @apply font-display text-3xl font-bold text-amber-100; }
+  .texto-regulamento h2 { @apply mt-6 border-b border-zinc-800 pb-1 font-display text-xl font-bold text-amber-300; }
+  .texto-regulamento h3 { @apply mt-4 font-semibold uppercase tracking-wide text-zinc-100; }
+  .texto-regulamento strong { @apply text-zinc-50; }
+  .texto-regulamento a { @apply text-amber-300 underline; }
+  .texto-regulamento ul { @apply list-disc space-y-1 pl-6; }
+  .texto-regulamento ol { @apply list-decimal space-y-1 pl-6; }
+  .texto-regulamento blockquote { @apply border-l-4 border-amber-500 pl-3 text-zinc-300; }
+  .texto-regulamento hr { @apply border-zinc-800; }
+  .texto-regulamento table { @apply block w-full overflow-x-auto border-collapse text-sm sm:table; }
+  .texto-regulamento th, .texto-regulamento td { @apply border border-zinc-800 px-2 py-1.5 text-left align-top; }
+  .texto-regulamento th { @apply bg-zinc-800/70 text-xs font-semibold uppercase tracking-wide text-zinc-300; }
+  .texto-regulamento th p, .texto-regulamento td p { @apply m-0; }
+  .texto-regulamento .selectedCell { @apply bg-amber-500/15; }
+  .texto-regulamento.ProseMirror { @apply min-h-80 outline-none; }
+}

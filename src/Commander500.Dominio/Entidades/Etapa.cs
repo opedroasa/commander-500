@@ -12,5 +12,10 @@ public class Etapa
     /// <summary>1, 2, 3… pela ordem das datas dentro da temporada.</summary>
     public int Numero { get; set; }
     public DateOnly Data { get; set; }
+    /// <summary>Mesa final do top 4 (modo <see cref="Enumeradores.ModoPontuacao.ColocacaoNaEtapa"/>). Fica fora da numeração por data
+    /// e pode ter a mesma data de uma etapa normal.</summary>
+    public bool Final { get; set; }
+    /// <summary>Quantas rodadas os finalistas vão jogar (só na final; informativo para a tela).</summary>
+    public int? RodadasPrevistas { get; set; }
     public List<Rodada> Rodadas { get; set; } = [];
 }

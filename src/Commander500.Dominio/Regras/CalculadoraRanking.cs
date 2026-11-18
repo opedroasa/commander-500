@@ -6,13 +6,19 @@ namespace Commander500.Dominio.Regras;
 
 /// <param name="Partidas">Mesas jogadas de fato (bye não conta).</param>
 /// <param name="PercentualVitoria">Vitórias ÷ partidas; nulo quando não jogou nenhuma.</param>
+/// <param name="Etapas">Modo por colocação: etapas concluídas que o jogador disputou (sem contar a final).</param>
+/// <param name="PrimeirosLugares">Modo por colocação: etapas em que terminou em 1º (empatados contam).</param>
+/// <param name="PontosFinal">Modo por colocação: pontos ganhos na mesa final (nulo = não jogou a final).</param>
+/// <param name="Empatado">Modo por colocação: outro jogador tem a mesma posição (o tratado manda a loja desempatar).</param>
 public record LinhaRanking(
     int Posicao, int IdJogador, string NomeJogador,
     int Pontos, int Vitorias, int Empates, int Derrotas, int Byes,
-    int Partidas, double? PercentualVitoria);
+    int Partidas, double? PercentualVitoria,
+    int Etapas = 0, int PrimeirosLugares = 0, int? PontosFinal = null, bool Empatado = false);
 
 /// <summary>
-/// Ranking da temporada (spec 4.1). Os pontos nunca são gravados: são sempre calculados a partir dos
+/// Ranking da temporada no modo <see cref="ModoPontuacao.SomaDasRodadas"/> (spec 4.1) e contadores de partidas
+/// usados pelos dois modos. Os pontos nunca são gravados: são sempre calculados a partir dos
 /// resultados das rodadas encerradas + configuração da temporada. Corrigir um resultado recalcula tudo.
 /// </summary>
 public static class CalculadoraRanking
@@ -56,6 +62,7 @@ public static class CalculadoraRanking
                     else
                     {
                         acumulado.Derrotas++;
+                        acumulado.Pontos += temporada.PontosDerrota; // presença de quem jogou e perdeu
                     }
                 }
             }

@@ -4,6 +4,8 @@ export type SituacaoDeck = 'Pendente' | 'Aprovado' | 'Reprovado'
 export type SituacaoRodada = 'Rascunho' | 'Sorteada' | 'EmAndamento' | 'Encerrada'
 export type ResultadoMesa = 'Pendente' | 'Vitoria' | 'Empate'
 export type CriterioDesempate = 'Vitorias' | 'MenosPartidas' | 'MaisPartidas' | 'Empates' | 'PercentualVitoria'
+/** ColocacaoNaEtapa (padrão, tratado): a colocação em cada etapa vale pontos. SomaDasRodadas: os pontos das rodadas somam direto. */
+export type ModoPontuacao = 'ColocacaoNaEtapa' | 'SomaDasRodadas'
 
 // ---------- Temporadas
 export interface ConfiguracaoTemporada {
@@ -16,7 +18,15 @@ export interface ConfiguracaoTemporada {
   /** regra "acabou o tempo, mais N turnos" (só aparece no timer) */
   turnosExtrasAposTempo: number
   minimoPartidasPercentualComandante: number
+  /** só no modo soma das rodadas */
   criteriosDesempate: CriterioDesempate[]
+  modoPontuacao: ModoPontuacao
+  /** pontos de quem jogou e perdeu (presença) */
+  pontosDerrota: number
+  /** modo por colocação: pontos do 1º, 2º, 3º… da etapa */
+  pontosPorColocacao: number[]
+  /** modo por colocação: pontos de quem ficou abaixo da tabela */
+  pontosDemaisColocados: number
 }
 
 export interface Temporada {
@@ -28,7 +38,14 @@ export interface Temporada {
   configuracaoTravada: boolean
   configuracao: ConfiguracaoTemporada
   quantidadeRodadas: number
+  /** etapas normais (sem contar a mesa final) */
   quantidadeEtapas: number
+  /** próxima etapa marcada (UTC) */
+  proximaEtapaEm: string | null
+  /** último dia para enviar as listas */
+  prazoListas: string | null
+  /** etapa da mesa final, se já foi formada */
+  idEtapaFinal: number | null
 }
 
 export interface TemporadaEnvio {
@@ -51,6 +68,24 @@ export interface LinhaRanking {
   /** mesas jogadas (bye não conta) */
   partidas: number
   percentualVitoria: number | null
+  /** modo por colocação: etapas concluídas disputadas (sem a final) */
+  etapas: number
+  /** modo por colocação: etapas terminadas em 1º */
+  primeirosLugares: number
+  /** modo por colocação: pontos da mesa final (null = não jogou) */
+  pontosFinal: number | null
+  /** modo por colocação: mesma posição de outro jogador */
+  empatado: boolean
+}
+
+export interface FinalistaSugerido {
+  posicao: number
+  idJogador: number
+  nomeJogador: string
+  pontos: number
+  empatado: boolean
+  /** deck da última rodada (0 = nenhum) */
+  idDeck: number
 }
 
 // ---------- Jogadores, decks e comandantes
@@ -145,7 +180,7 @@ export interface Participacao {
 }
 
 export interface Cadeira {
-  /** 1..4; a cadeira 1 começa jogando */
+  /** 1..4 (até 6 em mesa montada à mão); a cadeira 1 começa jogando */
   numero: number
   participacao: Participacao
 }
@@ -190,6 +225,12 @@ export interface Rodada {
   participacoes: Participacao[]
   byes: Participacao[]
   mesas: Mesa[]
+  /** rodada da mesa final */
+  etapaFinal: boolean
+  /** só na final: quantas rodadas estão previstas */
+  rodadasPrevistasEtapa: number | null
+  /** data passada: lança resultados e encerra sem timer */
+  retroativa: boolean
 }
 
 export interface LoginResposta {
@@ -216,6 +257,9 @@ export interface Etapa {
   concluida: boolean
   /** posição 1 (vários quando empatados) */
   lideres: ReferenciaJogador[]
+  /** mesa final do top 4 */
+  final: boolean
+  rodadasPrevistas: number | null
 }
 
 export interface LinhaRankingEtapa {
@@ -223,6 +267,8 @@ export interface LinhaRankingEtapa {
   posicao: number
   idJogador: number
   nomeJogador: string
+  /** pontos das rodadas da etapa */
+  pontos: number
   /** vitórias em mesa + byes (na etapa o bye conta como vitória) */
   vitorias: number
   vitoriasMesa: number
@@ -236,8 +282,18 @@ export interface LinhaRankingEtapa {
 
 export interface DetalheEtapa {
   etapa: Etapa
-  ranking: LinhaRankingEtapa[]
+  modoPontuacao: ModoPontuacao
+  /** pontosTemporada: quanto a colocação vale no ranking da temporada (só no modo por colocação) */
+  ranking: { linha: LinhaRankingEtapa; pontosTemporada: number | null }[]
   rodadas: Rodada[]
+}
+
+// ---------- Regulamento
+export interface Regulamento {
+  /** HTML do editor */
+  conteudo: string
+  alteradoEm: string | null
+  alteradoPor: string | null
 }
 
 // ---------- Perfil do jogador

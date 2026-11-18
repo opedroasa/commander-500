@@ -48,6 +48,8 @@ public static class EndpointsAdmin
         temporadas.MapPut("/{id:int}", (int id, TemporadaEnvio envio, ServicoTemporada s) => s.Alterar(id, envio));
         temporadas.MapPut("/{id:int}/configuracao", (int id, ConfiguracaoTemporada configuracao, ServicoTemporada s) => s.AlterarConfiguracao(id, configuracao))
             .WithSummary("Pontuação, bye, timer, desempate. Bloqueado após a 1ª rodada encerrada.");
+        temporadas.MapPut("/{id:int}/proxima-etapa", (int id, ProximaEtapaEnvio envio, ServicoTemporada s) => s.DefinirProximaEtapa(id, envio))
+            .WithSummary("Data/hora da próxima etapa e prazo das listas (aviso da página inicial).");
         temporadas.MapPost("/{id:int}/encerrar", (int id, ServicoTemporada s) => s.Encerrar(id));
         temporadas.MapDelete("/{id:int}", async (int id, ServicoTemporada s) => { await s.Excluir(id); return Results.NoContent(); });
 
@@ -55,12 +57,21 @@ public static class EndpointsAdmin
         temporadas.MapPost("/{id:int}/rodadas", async (int id, NovaRodadaEnvio? envio, ServicoRodada s) =>
             Criado("rodadas", await s.Criar(id, envio ?? new NovaRodadaEnvio(null, null)), r => r.Id))
             .WithTags("Admin · Rodadas")
-            .WithSummary("Cria a rodada na etapa da data (cria a etapa se for uma data nova).");
+            .WithSummary("Cria a rodada na etapa da data (cria a etapa se for uma data nova; data passada = retroativa) ou na etapa informada.");
+        temporadas.MapGet("/{id:int}/finalistas", (int id, int? quantidade, ServicoEstatisticas s) => s.SugerirFinalistas(id, quantidade ?? 4))
+            .WithTags("Admin · Rodadas")
+            .WithSummary("Top N do ranking com o último deck de cada um (sugestão para a mesa final).");
+        temporadas.MapPost("/{id:int}/mesa-final", async (int id, MesaFinalEnvio envio, ServicoRodada s) =>
+                Criado("rodadas", await s.CriarMesaFinal(id, envio), r => r.Id))
+            .WithTags("Admin · Rodadas")
+            .WithSummary("Forma a mesa final (modo por colocação): cria a etapa final e a 1ª rodada com os finalistas.");
 
         var rodadas = api.MapGroup("/rodadas").WithTags("Admin · Rodadas");
         rodadas.MapPut("/{id:int}/participantes", (int id, List<ParticipanteInformado> participantes, ServicoRodada s) => s.DefinirParticipantes(id, participantes))
             .WithSummary("Presentes e deck de cada um (Rascunho/Sorteada; volta para Rascunho).");
         rodadas.MapPost("/{id:int}/sortear", (int id, ServicoRodada s) => s.Sortear(id)).WithSummary("Sorteio / re-sorteio.");
+        rodadas.MapPut("/{id:int}/mesas", (int id, MontagemMesasEnvio envio, ServicoRodada s) => s.MontarMesas(id, envio))
+            .WithSummary("Monta as mesas à mão (quem ficar de fora é bye).");
         rodadas.MapPost("/{id:int}/iniciar", (int id, IniciarRodadaEnvio? envio, ServicoRodada s) => s.Iniciar(id, envio?.DuracaoMinutos));
         rodadas.MapPost("/{id:int}/encerrar", (int id, ServicoRodada s) => s.Encerrar(id));
         rodadas.MapDelete("/{id:int}", async (int id, ServicoRodada s) => { await s.Excluir(id); return Results.NoContent(); });
@@ -68,6 +79,13 @@ public static class EndpointsAdmin
         api.MapPut("/mesas/{id:int}/resultado", (int id, ResultadoMesaEnvio envio, ServicoRodada s, ClaimsPrincipal usuario) =>
                 s.RegistrarResultadoMesa(id, envio, usuario.FindFirstValue(JwtRegisteredClaimNames.Email) ?? usuario.FindFirstValue(ClaimTypes.Email)))
             .WithTags("Admin · Rodadas");
+        api.MapPut("/mesas/{id:int}/quem-comeca", (int id, QuemComecaEnvio envio, ServicoRodada s) => s.DefinirQuemComeca(id, envio))
+            .WithTags("Admin · Rodadas")
+            .WithSummary("Troca quem começa jogando (vai para a cadeira 1; os outros giram junto).");
+
+        api.MapPut("/regulamento", (RegulamentoEnvio envio, ServicoRegulamento s, ClaimsPrincipal usuario) =>
+                s.Salvar(envio, usuario.FindFirstValue(JwtRegisteredClaimNames.Email) ?? usuario.FindFirstValue(ClaimTypes.Email)))
+            .WithTags("Admin · Regulamento");
     }
 
     /// <summary>201 Created com o endereço do registro novo.</summary>
