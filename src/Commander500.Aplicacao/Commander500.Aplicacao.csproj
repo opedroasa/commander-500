@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Aplicação: casos de uso (serviços), DTOs e interfaces que a Infraestrutura implementa.
+       Usa só o EF Core "genérico" (ToListAsync/Include/AsSplitQuery); o PostgreSQL fica na Infraestrutura. -->
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Commander500.Dominio\Commander500.Dominio.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.23" />
+    <!-- AsSplitQuery (consultas grandes em partes). Genérico: não amarra ao PostgreSQL. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.23" />
+  </ItemGroup>
+
+</Project>

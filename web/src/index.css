@@ -5,7 +5,7 @@
  *
  * As telas usam as escalas `zinc` (superfícies/texto) e `amber` (destaque) do Tailwind.
  * Aqui elas são redefinidas: `zinc` vira azul-marinho e `amber` vira o laranja da logo.
- * O tema claro (html[data-theme="light"]) inverte as escalas (950 ↔ 50), então os mesmos
+  * O tema claro (html[data-tema="claro"]) inverte as escalas (950 ↔ 50), então os mesmos
  * componentes funcionam nos dois temas sem classes duplicadas.
  */
 @theme {
@@ -44,7 +44,7 @@
   --color-brand-navy: #13235a;
 }
 
-html[data-theme="light"] {
+html[data-tema="claro"] {
   color-scheme: light;
 
   --color-zinc-50: #0a1128;
@@ -127,15 +127,15 @@ html[data-theme="light"] {
   }
 }
 
-@utility btn {
+@utility botao {
   @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition
     disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400;
 }
 /* Botão principal: laranja da logo com texto branco nos dois temas. */
-@utility btn-primary { @apply btn bg-brand-orange text-white hover:brightness-110; }
-@utility btn-secondary { @apply btn border border-zinc-700 bg-zinc-900 text-zinc-100 hover:bg-zinc-800; }
-@utility btn-danger { @apply btn border border-red-900 bg-red-950/60 text-red-200 hover:bg-red-900/60; }
-@utility btn-ghost { @apply btn text-zinc-300 hover:bg-zinc-800; }
-@utility btn-sm { @apply min-h-8 px-3 py-1 text-xs; }
-@utility card { @apply rounded-2xl border border-zinc-800 bg-zinc-900/60; }
-@utility label { @apply mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-400; }
+@utility botao-primario { @apply botao bg-brand-orange text-white hover:brightness-110; }
+@utility botao-secundario { @apply botao border border-zinc-700 bg-zinc-900 text-zinc-100 hover:bg-zinc-800; }
+@utility botao-perigo { @apply botao border border-red-900 bg-red-950/60 text-red-200 hover:bg-red-900/60; }
+@utility botao-discreto { @apply botao text-zinc-300 hover:bg-zinc-800; }
+@utility botao-pequeno { @apply min-h-8 px-3 py-1 text-xs; }
+@utility cartao { @apply rounded-2xl border border-zinc-800 bg-zinc-900/60; }
+@utility rotulo { @apply mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-400; }
