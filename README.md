@@ -8,8 +8,8 @@ Site da liga de **Commander 500** (Magic: The Gathering) da Fantasy Store: ranki
 
 | Parte | Tecnologia | Pasta |
 |---|---|---|
-| API | ASP.NET Core (.NET 9), EF Core, PostgreSQL | `src/Commander500.Api` |
-| Testes | xUnit | `tests/Commander500.Tests` |
+| Api (arquitetura limpa) | ASP.NET Core (.NET 9), EF Core, PostgreSQL | `src/Commander500.Dominio`, `.Aplicacao`, `.Infraestrutura`, `.Api` |
+| Testes | xUnit | `tests/Commander500.Testes` |
 | Site | React 19, Vite, TypeScript, Tailwind | `web/` |
 | Banco local | Postgres 16 no Docker | `docker-compose.yml` |
 
@@ -78,7 +78,7 @@ O script sobe o banco, instala as dependências na primeira vez, abre a API e o 
 | Endereço | O que é |
 |---|---|
 | <http://localhost:5173> | Site (público) |
-| <http://localhost:5173/admin> | Área do lojista: **admin@fantasystore.local** / **admin123** |
+| <http://localhost:5173/admin> | Área do admin: **admin@fantasystore.local** / **admin123** |
 | <http://localhost:5173/ao-vivo> | Mesas e timer da rodada em andamento (para o telão / celular) |
 | <http://localhost:5080/swagger> | Documentação interativa da API |
 
@@ -93,7 +93,7 @@ Na primeira vez a API cria as tabelas e os **dados de exemplo**: "Temporada 1" c
 **Terminal 1 — banco:**
 
 ```bash
-docker compose up -d --wait db
+docker compose up -d --wait banco
 ```
 
 **Terminal 2 — API** (aplica migrations e o seed ao iniciar):
@@ -129,20 +129,20 @@ No Visual Studio / Rider, abra `Commander500.sln` e rode o perfil **http** do pr
 | Lint do site | `npm run lint --prefix web` |
 | Parar o banco (mantém os dados) | `docker compose stop` |
 | **Zerar o banco e recriar os exemplos** | `docker compose down -v` e rodar de novo |
-| Criar migration após mudar uma entidade | `dotnet ef migrations add NomeDaMudanca --project src/Commander500.Api --output-dir Data/Migrations` |
+| Criar migration após mudar uma entidade | `dotnet ef migrations add NomeDaMudanca --project src/Commander500.Infraestrutura --output-dir Dados/Migracoes` |
 
 ---
 
 ## 6. Roteiro de demonstração para o lojista
 
-1. **Site público** (<http://localhost:5173>): temporada → **Ranking**, **Comandantes** (duplas de parceiros contam como uma linha) e **Rodadas** (histórico com vencedores).
-2. **Lojista → Rodadas → Nova rodada.**
+1. **Site público** (<http://localhost:5173>): temporada → **Ranking** (toque no nome para abrir o perfil), **Etapas** (ranking do dia) e **Comandantes** (artes do Scryfall; duplas de parceiros contam como uma linha).
+2. **Admin → Rodadas → Nova etapa (hoje).** Uma segunda rodada no mesmo dia já vem com os presentes da anterior.
 3. **Presentes:** marque os jogadores e confira o deck de cada um (aviso para deck pendente/reprovado) → **Salvar e sortear**.
 4. **Sorteio:** mesas desenhadas com as 4 cadeiras (cadeira 1 começa). Mostre o **Sortear novamente** e que quem já teve bye na temporada não repete.
 5. Abra **Ao vivo** em outra aba ou no celular (mesma rede: `http://<ip-do-pc>:5173/ao-vivo`, veja abaixo) e use "Encontre sua mesa".
 6. **Iniciar rodada:** o timer aparece igual em todas as telas, e recarregar a página não reinicia.
 7. Toque no vencedor de cada mesa e confirme, ou marque **Empate** → **Encerrar rodada** → o ranking atualiza.
-8. **Cadastros:** jogadores, decks (aprovar/reprovar com observação), comandantes e a **Pontuação** da temporada (trava após a 1ª rodada encerrada).
+8. **Cadastros:** jogadores (perfil com **Novo deck**, comandante buscado no Scryfall), decks (aprovar/reprovar com observação) e a **Pontuação** da temporada (trava após a 1ª rodada encerrada).
 
 **Abrir no celular durante a demo:** rode o site com `npm run dev --prefix web -- --host` e acesse `http://<ip-do-computador>:5173` com o celular no mesmo Wi-Fi (o IP aparece no terminal do Vite). O Windows pode pedir permissão no firewall.
 
@@ -154,7 +154,7 @@ No Visual Studio / Rider, abra `Commander500.sln` e rode o perfil **http** do pr
 |---|---|
 | `O Docker não está rodando` / erro de `dockerDesktopLinuxEngine` | Abra o Docker Desktop e espere iniciar |
 | Banco não sobe: porta **5432** em uso | Outro Postgres está rodando na máquina; pare-o ou mude a porta em `docker-compose.yml` **e** em `appsettings.Development.json` |
-| Porta **5080** ou **5173** em uso | Feche a janela antiga da API/site (ou finalize o processo `dotnet`/`node`) |
+| Porta **5080** ou **5173** em uso | Feche a janela antiga da Api/site (ou finalize o processo `dotnet`/`node`). A 5080 também é usada pela Gestão Rastreio Wiki: rode um projeto de cada vez, ou rode esta Api em outra porta e o site com `ALVO_API=http://localhost:5081` |
 | Script `.ps1` bloqueado ("execução de scripts foi desabilitada") | Use exatamente `powershell -ExecutionPolicy Bypass -File scripts\dev.ps1` |
 | Site abre mas mostra "Não foi possível conectar ao servidor" | A API não está rodando; veja a janela/terminal da API |
 | Quero os dados de exemplo de volta | `docker compose down -v` e rode de novo |
@@ -167,4 +167,5 @@ No Visual Studio / Rider, abra `Commander500.sln` e rode o perfil **http** do pr
 - Crie uma branch por tarefa (`git switch -c feature/nome`) e abra Pull Request para a `main`.
 - Antes de subir: `dotnet test` e `npm run build --prefix web`.
 - Mudou entidade? Gere a migration e faça commit dela junto.
-- Regras de negócio ficam em `src/Commander500.Api/Domain/Services` com teste em `tests/` (ver [CLAUDE.md](CLAUDE.md)).
+- Regras de negócio ficam em `src/Commander500.Dominio/Regras` com teste em `tests/` (ver [CLAUDE.md](CLAUDE.md)).
+- Nomes em português (classes, métodos, variáveis, tabelas, rotas e JSON); só o que é da linguagem/framework fica em inglês. Glossário no [CLAUDE.md](CLAUDE.md).

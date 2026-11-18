@@ -1,8 +1,8 @@
-# Local development database. Start with: docker compose up -d db
+# Banco local para desenvolvimento. Subir com: docker compose up -d --wait banco
 services:
-  db:
+  banco:
     image: postgres:16-alpine
-    container_name: commander500-db
+    container_name: commander500-banco
     environment:
       POSTGRES_DB: commander500
       POSTGRES_USER: commander500
@@ -10,29 +10,29 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - dados_postgres:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U commander500 -d commander500"]
       interval: 5s
       timeout: 3s
       retries: 10
 
-  # Optional: run the API in Docker too (docker compose --profile api up --build)
+  # Opcional: rodar a Api no Docker também (docker compose --profile api up --build)
   api:
     profiles: ["api"]
     build: .
     depends_on:
-      db:
+      banco:
         condition: service_healthy
     environment:
-      ConnectionStrings__Default: "Host=db;Port=5432;Database=commander500;Username=commander500;Password=commander500"
-      Jwt__Key: "dev-only-key-change-me-0123456789-abcdefghijklmnop"
+      ConnectionStrings__Padrao: "Host=banco;Port=5432;Database=commander500;Username=commander500;Password=commander500"
+      Jwt__Chave: "dev-only-key-change-me-0123456789-abcdefghijklmnop"
       Admin__Email: "admin@fantasystore.local"
-      Admin__Password: "admin123"
-      Cors__AllowedOrigins: "http://localhost:5173"
-      Seed__DemoData: "true"
+      Admin__Senha: "admin123"
+      Cors__OrigensPermitidas: "http://localhost:5173"
+      Semente__DadosDemonstracao: "true"
     ports:
       - "8080:8080"
 
 volumes:
-  pgdata:
+  dados_postgres:

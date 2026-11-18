@@ -1,93 +1,66 @@
 using System.Security.Claims;
 using System.Text.Json.Serialization;
-using Commander500.Api.Application;
-using Commander500.Api.Auth;
-using Commander500.Api.Data;
-using Commander500.Api.Domain;
-using Commander500.Api.Domain.Services;
+using Commander500.Api.Comum;
 using Commander500.Api.Endpoints;
-using Commander500.Api.Infrastructure;
-using Commander500.Api.Infrastructure.Scryfall;
+using Commander500.Aplicacao;
+using Commander500.Infraestrutura;
+using Commander500.Infraestrutura.Dados;
+using Commander500.Infraestrutura.Seguranca;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
-var config = builder.Configuration;
+var configuracao = builder.Configuration;
 
-// Render (and similar hosts) provide the port in $PORT.
-if (Environment.GetEnvironmentVariable("PORT") is { Length: > 0 } port)
-    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+// O Render (e serviços parecidos) informa a porta na variável PORT.
+if (Environment.GetEnvironmentVariable("PORT") is { Length: > 0 } porta)
+    builder.WebHost.UseUrls($"http://0.0.0.0:{porta}");
 
-// ---- Database
-var connectionString = new[] { config.GetConnectionString("Default"), Environment.GetEnvironmentVariable("DATABASE_URL") }
-    .FirstOrDefault(s => !string.IsNullOrWhiteSpace(s))
-    ?? throw new InvalidOperationException("Connection string ausente: defina ConnectionStrings__Default (ou DATABASE_URL).");
-builder.Services.AddDbContext<AppDbContext>(o => o.UseNpgsql(ConnectionStrings.Normalize(connectionString)));
-
-// ---- Services
-builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddSingleton<IRandomSource, CryptoRandomSource>();
-builder.Services.AddSingleton<IPasswordHasher<AdminUser>, PasswordHasher<AdminUser>>();
-builder.Services.AddScoped<SeasonService>();
-builder.Services.AddScoped<RoundService>();
-builder.Services.AddScoped<CatalogService>();
-builder.Services.AddScoped<StatsService>();
-builder.Services.AddScoped<AuthService>();
-
-// ---- Scryfall (commander names, art and colors). Free public API, no key.
-builder.Services.AddMemoryCache();
-builder.Services.AddHttpClient<IScryfallClient, ScryfallClient>(c =>
-{
-    c.BaseAddress = new Uri(ScryfallClient.BaseAddress);
-    c.Timeout = TimeSpan.FromSeconds(10);
-    c.DefaultRequestHeaders.UserAgent.ParseAdd(ScryfallClient.UserAgent);
-    c.DefaultRequestHeaders.Accept.ParseAdd("application/json");
-});
-if (config.GetValue("Scryfall:Enabled", true))
-    builder.Services.AddHostedService<ScryfallEnrichmentService>();
+// ----- Camadas (arquitetura limpa): Aplicação (casos de uso) e Infraestrutura (banco, Scryfall, JWT)
+builder.Services.AdicionarAplicacao();
+builder.Services.AdicionarInfraestrutura(configuracao);
 
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddProblemDetails();
-builder.Services.AddExceptionHandler<ErrorHandler>();
+builder.Services.AddExceptionHandler<TratadorErros>();
 
-// ---- Auth (JWT for the store admin)
-var jwt = config.GetSection(JwtOptions.Section).Get<JwtOptions>() ?? new JwtOptions();
-if (jwt.Key.Length < 32)
-    throw new InvalidOperationException("Jwt:Key ausente ou curta (mínimo 32 caracteres). Defina a variável Jwt__Key.");
-builder.Services.Configure<JwtOptions>(config.GetSection(JwtOptions.Section));
+// ----- Login do lojista (JWT)
+var opcoesJwt = configuracao.GetSection(OpcoesJwt.Secao).Get<OpcoesJwt>() ?? new OpcoesJwt();
+if (opcoesJwt.Chave.Length < 32)
+    throw new InvalidOperationException("Jwt:Chave ausente ou curta (mínimo 32 caracteres). Defina a variável Jwt__Chave.");
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(o =>
 {
     o.MapInboundClaims = false;
     o.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidIssuer = jwt.Issuer,
-        ValidAudience = jwt.Audience,
-        IssuerSigningKey = jwt.SigningKey(),
+        ValidIssuer = opcoesJwt.Emissor,
+        ValidAudience = opcoesJwt.Publico,
+        IssuerSigningKey = opcoesJwt.ChaveAssinatura(),
         RoleClaimType = ClaimTypes.Role,
         ClockSkew = TimeSpan.FromMinutes(1),
     };
 });
-builder.Services.AddAuthorizationBuilder().AddPolicy(AdminEndpoints.AdminPolicy, p => p.RequireRole("Admin"));
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy(EndpointsAdmin.PoliticaAdmin, p => p.RequireRole(GeradorTokenJwt.PapelAdmin));
 
-// ---- CORS: Cors__AllowedOrigins = "https://a.com,https://b.com"
-var origins = (config["Cors:AllowedOrigins"] ?? "")
+// ----- CORS: Cors__OrigensPermitidas = "https://a.com,https://b.com" ("*" libera tudo)
+var origens = (configuracao["Cors:OrigensPermitidas"] ?? "")
     .Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
 {
-    if (origins.Contains("*")) p.AllowAnyOrigin(); else p.WithOrigins(origins);
+    if (origens.Contains("*")) p.AllowAnyOrigin(); else p.WithOrigins(origens);
     p.AllowAnyHeader().AllowAnyMethod();
 }));
 
-// ---- Swagger
+// ----- Swagger (documentação para testar a Api)
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(o =>
 {
     o.SwaggerDoc("v1", new OpenApiInfo { Title = "Commander 500 – Fantasy Store API", Version = "v1" });
-    o.CustomSchemaIds(t => t.FullName?.Replace("+", "."));
-    var scheme = new OpenApiSecurityScheme
+    o.CustomSchemaIds(tipo => tipo.FullName?.Replace("+", "."));
+    var esquema = new OpenApiSecurityScheme
     {
         Name = "Authorization",
         Type = SecuritySchemeType.Http,
@@ -96,8 +69,8 @@ builder.Services.AddSwaggerGen(o =>
         In = ParameterLocation.Header,
         Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" },
     };
-    o.AddSecurityDefinition("Bearer", scheme);
-    o.AddSecurityRequirement(new OpenApiSecurityRequirement { [scheme] = [] });
+    o.AddSecurityDefinition("Bearer", esquema);
+    o.AddSecurityRequirement(new OpenApiSecurityRequirement { [esquema] = [] });
 });
 
 var app = builder.Build();
@@ -107,24 +80,24 @@ app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 
-if (config.GetValue("Swagger:Enabled", true))
+if (configuracao.GetValue("Swagger:Habilitado", true))
 {
     app.UseSwagger();
     app.UseSwaggerUI(o => o.DocumentTitle = "Commander 500 API");
-    // Opening the API root (http://localhost:5080) goes straight to the docs.
+    // Abrir a raiz da Api (http://localhost:5080) leva direto para a documentação.
     app.MapGet("/", () => Results.Redirect("/swagger")).ExcludeFromDescription();
 }
 
-app.MapPublicEndpoints();
-app.MapAdminEndpoints();
+app.MapearEndpointsPublicos();
+app.MapearEndpointsAdmin();
 
-// ---- Migrations + seed on startup
-if (config.GetValue("Database:MigrateOnStartup", true))
+// ----- Migrations + dados iniciais ao subir
+if (configuracao.GetValue("Banco:MigrarAoIniciar", true))
 {
-    using var scope = app.Services.CreateScope();
-    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
-    await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.MigrateAsync();
-    await DbSeeder.SeedAsync(scope.ServiceProvider, logger);
+    using var escopo = app.Services.CreateScope();
+    var log = escopo.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Inicializacao");
+    await escopo.ServiceProvider.GetRequiredService<ContextoBanco>().Database.MigrateAsync();
+    await SemeadorBanco.SemearAsync(escopo.ServiceProvider, log);
 }
 
 app.Run();

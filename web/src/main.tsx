@@ -1,63 +1,64 @@
+// Ponto de entrada do site: cache de consultas, rotas e telas.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createBrowserRouter, RouterProvider } from 'react-router'
-import { ApiError } from './api/client'
-import { AdminLayout, PublicLayout } from './components/Layout'
-import { RequireAdmin, Root } from './components/RouteGuards'
-import { Empty } from './components/ui'
+import { ErroApi } from './api/cliente'
+import { Vazio } from './componentes/comum'
+import { LayoutAdmin, LayoutPublico } from './componentes/Layout'
+import { ExigirAdmin, Raiz } from './componentes/ProtecaoRotas'
 import './index.css'
-import { AdminHomePage } from './pages/admin/AdminHomePage'
-import { DecksPage } from './pages/admin/DecksPage'
-import { LoginPage } from './pages/admin/LoginPage'
-import { PlayersPage } from './pages/admin/PlayersPage'
-import { RoundConductPage } from './pages/admin/RoundConductPage'
-import { SeasonsAdminPage } from './pages/admin/SeasonsAdminPage'
-import { LivePage, RoundPage } from './pages/public/LivePages'
-import { CommandersPage } from './pages/public/CommandersPage'
-import { SeasonDetailPage } from './pages/public/SeasonDetailPage'
-import { SeasonsPage } from './pages/public/SeasonsPage'
+import { PaginaConducaoRodada } from './paginas/admin/PaginaConducaoRodada'
+import { PaginaDecks } from './paginas/admin/PaginaDecks'
+import { PaginaEtapasRodadas } from './paginas/admin/PaginaEtapasRodadas'
+import { PaginaJogadores } from './paginas/admin/PaginaJogadores'
+import { PaginaLogin } from './paginas/admin/PaginaLogin'
+import { PaginaTemporadas } from './paginas/admin/PaginaTemporadas'
+import { PaginaComandantes } from './paginas/publico/PaginaComandantes'
+import { PaginaInicial } from './paginas/publico/PaginaInicial'
+import { PaginaAoVivo, PaginaRodada } from './paginas/publico/PaginasAoVivo'
+import { PaginaTemporada } from './paginas/publico/PaginaTemporada'
 
-const queryClient = new QueryClient({
+const cacheConsultas = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 10_000,
-      // Render's free tier cold-starts: retry network errors a few times, never 4xx.
-      retry: (count, err) => (err instanceof ApiError && err.status >= 400 && err.status < 500 ? false : count < 3),
-      retryDelay: (n) => Math.min(1000 * 2 ** n, 8000),
+      // A Api no plano grátis do Render demora para acordar: tenta de novo em erro de rede, nunca em erro 4xx.
+      retry: (tentativas, erro) => (erro instanceof ErroApi && erro.status >= 400 && erro.status < 500 ? false : tentativas < 3),
+      retryDelay: (tentativa) => Math.min(1000 * 2 ** tentativa, 8000),
     },
   },
 })
 
-const router = createBrowserRouter([
+const rotas = createBrowserRouter([
   {
-    element: <Root />,
+    element: <Raiz />,
     children: [
       {
-        element: <PublicLayout />,
+        element: <LayoutPublico />,
         children: [
-          { path: '/', element: <SeasonsPage /> },
-          { path: '/temporadas/:id', element: <SeasonDetailPage /> },
-          { path: '/comandantes', element: <CommandersPage /> },
-          { path: '/ao-vivo', element: <LivePage /> },
-          { path: '/rodadas/:id', element: <RoundPage /> },
-          { path: '/admin/login', element: <LoginPage /> },
+          { path: '/', element: <PaginaInicial /> },
+          { path: '/temporadas/:id', element: <PaginaTemporada /> },
+          { path: '/comandantes', element: <PaginaComandantes /> },
+          { path: '/ao-vivo', element: <PaginaAoVivo /> },
+          { path: '/rodadas/:id', element: <PaginaRodada /> },
+          { path: '/admin/login', element: <PaginaLogin /> },
           {
-            element: <RequireAdmin />,
+            element: <ExigirAdmin />,
             children: [
               {
-                element: <AdminLayout />,
+                element: <LayoutAdmin />,
                 children: [
-                  { path: '/admin', element: <AdminHomePage /> },
-                  { path: '/admin/rodadas/:id', element: <RoundConductPage /> },
-                  { path: '/admin/jogadores', element: <PlayersPage /> },
-                  { path: '/admin/decks', element: <DecksPage /> },
-                  { path: '/admin/temporadas', element: <SeasonsAdminPage /> },
+                  { path: '/admin', element: <PaginaEtapasRodadas /> },
+                  { path: '/admin/rodadas/:id', element: <PaginaConducaoRodada /> },
+                  { path: '/admin/jogadores', element: <PaginaJogadores /> },
+                  { path: '/admin/decks', element: <PaginaDecks /> },
+                  { path: '/admin/temporadas', element: <PaginaTemporadas /> },
                 ],
               },
             ],
           },
-          { path: '*', element: <Empty>Página não encontrada.</Empty> },
+          { path: '*', element: <Vazio>Página não encontrada.</Vazio> },
         ],
       },
     ],
@@ -66,8 +67,8 @@ const router = createBrowserRouter([
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+    <QueryClientProvider client={cacheConsultas}>
+      <RouterProvider router={rotas} />
     </QueryClientProvider>
   </StrictMode>,
 )

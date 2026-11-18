@@ -1,0 +1,120 @@
+import { AlertTriangle, Crown, Handshake } from 'lucide-react'
+import type { Cadeira, Mesa } from '../api/tipos'
+import { rotuloSituacaoDeck } from '../utilitarios/formatacao'
+
+/**
+ * Mesa retangular da loja: dois jogadores de cada lado.
+ * Ordem dos turnos em sentido horário: 1 (em cima à esquerda, começa) → 2 (em cima à direita) → 3 (embaixo à direita) → 4 (embaixo à esquerda).
+ */
+const posicaoDaCadeira: Record<number, string> = {
+  1: 'col-start-1 row-start-1',
+  2: 'col-start-2 row-start-1',
+  3: 'col-start-2 row-start-3',
+  4: 'col-start-1 row-start-3',
+}
+
+interface Propriedades {
+  mesa: Mesa
+  /** Jogadores destacados (ex.: busca "encontre sua mesa"). */
+  idsJogadoresDestacados?: Set<number>
+  /** Lançamento de resultado no admin: clicar numa cadeira escolhe o vencedor. */
+  aoClicarCadeira?: (cadeira: Cadeira) => void
+  /** Vencedor escolhido no admin, antes de salvar. */
+  idParticipacaoEscolhida?: number | null
+  mostrarAvisoDeck?: boolean
+}
+
+/** Desenho da mesa (pod) com as 4 cadeiras, jogador e comandante em cada uma (spec 4.3). */
+export function DesenhoMesa({ mesa, idsJogadoresDestacados, aoClicarCadeira, idParticipacaoEscolhida, mostrarAvisoDeck = true }: Propriedades) {
+  const idVencedor = idParticipacaoEscolhida !== undefined ? idParticipacaoEscolhida : mesa.idParticipacaoVencedora
+  const decidida = mesa.resultado !== 'Pendente' || idParticipacaoEscolhida != null
+  const empate = mesa.resultado === 'Empate' && idParticipacaoEscolhida == null
+
+  return (
+    <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
+      {/* o tampo: feltro verde com borda de madeira, entre os dois lados */}
+      <div className="col-span-2 row-start-2 flex h-16 items-center justify-center gap-3 rounded-lg border-[5px] border-[#6b3f1d] bg-[radial-gradient(ellipse_at_center,#1f5c3a,#0f3a24_75%)] shadow-[inset_0_0_18px_rgba(0,0,0,.55),0_2px_6px_rgba(0,0,0,.35)]">
+        <span className="font-display text-xs uppercase tracking-[0.3em] text-[#cfe8d6]/80">Mesa</span>
+        <span className="font-display text-3xl font-bold leading-none text-white">{mesa.numero}</span>
+        {empate && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-black/40 px-2 py-0.5 text-[0.7rem] font-semibold text-white">
+            <Handshake className="size-3" aria-hidden /> Empate
+          </span>
+        )}
+      </div>
+
+      {mesa.cadeiras.map((cadeira) => (
+        <CartaoCadeira
+          key={cadeira.numero}
+          cadeira={cadeira}
+          className={posicaoDaCadeira[cadeira.numero] ?? ''}
+          vencedor={idVencedor === cadeira.participacao.id && !empate}
+          apagada={decidida && !empate && idVencedor !== cadeira.participacao.id && idVencedor != null}
+          destacada={idsJogadoresDestacados?.has(cadeira.participacao.idJogador) ?? false}
+          aoClicar={aoClicarCadeira ? () => aoClicarCadeira(cadeira) : undefined}
+          mostrarAvisoDeck={mostrarAvisoDeck}
+        />
+      ))}
+    </div>
+  )
+}
+
+function CartaoCadeira({ cadeira, className, vencedor, apagada, destacada, aoClicar, mostrarAvisoDeck }: {
+  cadeira: Cadeira
+  className: string
+  vencedor: boolean
+  apagada: boolean
+  destacada: boolean
+  aoClicar?: () => void
+  mostrarAvisoDeck: boolean
+}) {
+  const { participacao } = cadeira
+  const deckNaoAprovado = participacao.situacaoDeck !== 'Aprovado'
+  const Elemento = aoClicar ? 'button' : 'div'
+
+  return (
+    <Elemento
+      type={aoClicar ? 'button' : undefined}
+      onClick={aoClicar}
+      aria-pressed={aoClicar ? vencedor : undefined}
+      aria-label={aoClicar ? `Marcar ${participacao.nomeJogador} como vencedor` : undefined}
+      className={`${className} relative isolate flex min-h-[5.5rem] min-w-0 flex-col justify-end overflow-hidden rounded-xl border p-2 text-left transition ${
+        vencedor
+          ? 'border-amber-400 shadow-[0_0_0_1px_rgba(242,101,34,.6),0_0_18px_rgba(242,101,34,.3)]'
+          : destacada
+            ? 'border-sky-400 ring-2 ring-sky-400/40'
+            : 'border-zinc-800'
+      } bg-zinc-900 ${apagada ? 'opacity-50' : ''} ${aoClicar ? 'cursor-pointer hover:border-amber-500/70 active:scale-[.98]' : ''}`}
+    >
+      {/* arte do comandante esmaecida no fundo */}
+      {participacao.urlArteComandante && (
+        <>
+          <img src={participacao.urlArteComandante} alt="" loading="lazy" className="absolute inset-0 -z-20 size-full object-cover opacity-60" />
+          <div className="absolute inset-0 -z-10 bg-gradient-to-t from-zinc-950 via-zinc-950/80 to-zinc-950/30" />
+        </>
+      )}
+      <div className="mb-auto flex items-center gap-1.5 pb-1">
+        <span
+          className={`flex size-5 shrink-0 items-center justify-center rounded-full text-[0.65rem] font-bold ${
+            cadeira.numero === 1 ? 'bg-brand-orange text-white' : 'bg-zinc-700 text-zinc-100'
+          }`}
+          title={cadeira.numero === 1 ? 'Cadeira 1 — começa jogando' : `Cadeira ${cadeira.numero}`}
+        >
+          {cadeira.numero}
+        </span>
+        {cadeira.numero === 1 && <span className="text-[0.6rem] font-semibold uppercase tracking-wide text-amber-400">começa</span>}
+        {vencedor && <Crown className="ml-auto size-4 shrink-0 text-amber-400" aria-label="Vencedor" />}
+      </div>
+      <div className="line-clamp-2 text-sm font-semibold leading-tight text-zinc-50 break-words">{participacao.nomeJogador}</div>
+      <div className="mt-0.5 line-clamp-2 text-[0.7rem] leading-tight text-zinc-300 break-words">{participacao.comandantes || participacao.nomeDeck}</div>
+      {mostrarAvisoDeck && deckNaoAprovado && (
+        <div
+          className={`mt-1 inline-flex items-center gap-1 text-[0.65rem] font-medium ${participacao.situacaoDeck === 'Reprovado' ? 'text-red-300' : 'text-amber-300'}`}
+          title={`Deck ${rotuloSituacaoDeck[participacao.situacaoDeck].toLowerCase()}`}
+        >
+          <AlertTriangle className="size-3 shrink-0" aria-hidden /> Deck {rotuloSituacaoDeck[participacao.situacaoDeck].toLowerCase()}
+        </div>
+      )}
+    </Elemento>
+  )
+}
