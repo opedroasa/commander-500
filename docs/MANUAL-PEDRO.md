@@ -24,7 +24,7 @@ Arquivos novos: `web/Commander500.Web.esproj`, `vercel.json`, `.vercelignore`, `
 | **GitHub** (`opedroasa/commander-500`) | código, Pull Requests, publicação automática | você é o dono; nada muda |
 | **Supabase** | banco de produção (ver tabelas, rodar SQL, backup) | o Murilo te convida para a organização: aceite o e-mail **"You have been invited..."** e entre em <https://supabase.com/dashboard> |
 | **Vercel** | ver publicações, logs e variáveis | o plano grátis (Hobby) **não tem membros de equipe**: o projeto fica na conta do Murilo. Veja abaixo |
-| **Site no ar** | `https://commander500.vercel.app` | admin: e-mail/senha definidos em `Admin__Email` / `Admin__Senha` (combinem por mensagem privada, nunca no Git) |
+| **Site no ar** | `https://fantasy500.vercel.app` | o Murilo te cadastra em **Admin → Administradores** e te passa a senha por mensagem privada; depois troque a sua pela mesma tela (ícone da chave) |
 
 ### Vercel: como fica para você
 
@@ -85,7 +85,7 @@ branch feature/xxx ──► Pull Request ──► você revisa ──► merge
 3. Abre o **Pull Request** para a `main` no GitHub.
 4. Você revisa. Para aprovar: **Merge pull request** (deixe o padrão **Create a merge commit**).
 5. A aba **Actions** mostra "Publicar na Vercel" rodando (~3–5 min). Verde = está no ar.
-6. Confira `https://commander500.vercel.app/saude` → `{"situacao":"ok"}` e dê uma olhada no site.
+6. Confira `https://fantasy500.vercel.app/saude` → `{"situacao":"ok"}` e dê uma olhada no site.
 
 **Se a Action ficar vermelha**, nada foi publicado (o site continua na versão anterior). Clique nela para ver o erro:
 em "Testes e build" é problema no código; em "Enviar para a Vercel" é token/segredo ou erro de build lá na Vercel.
@@ -128,4 +128,4 @@ ela não apaga colunas ou tabelas com dados que importam.
 - [ ] Aceitar o convite do Supabase
 - [ ] Cadastrar os 3 segredos `VERCEL_*` no GitHub e rodar a Action uma vez
 - [ ] `git pull` na `main`, abrir a solução e testar o F5
-- [ ] Abrir `https://commander500.vercel.app` e entrar no admin
+- [ ] Abrir `https://fantasy500.vercel.app`, entrar no admin e trocar a sua senha em **Administradores**

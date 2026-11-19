@@ -1,6 +1,6 @@
 # Publicação – Commander 500
 
-Tudo no plano gratuito, e **o site e a Api ficam no mesmo endereço** (ex.: `https://commander500.vercel.app`):
+Tudo no plano gratuito, e **o site e a Api ficam no mesmo endereço** (**`https://fantasy500.vercel.app`**):
 
 | Parte | Serviço | Arquivo |
 |---|---|---|
@@ -10,7 +10,7 @@ Tudo no plano gratuito, e **o site e a Api ficam no mesmo endereço** (ex.: `htt
 | Publicação automática | **GitHub Actions** (a cada merge na `main`) | [`.github/workflows/publicar.yml`](../.github/workflows/publicar.yml) |
 
 ```
-navegador ──► https://commander500.vercel.app
+navegador ──► https://fantasy500.vercel.app
                  ├─ /api/*, /saude, /swagger ──► serviço "api" (container .NET) ──► Supabase (Postgres)
                  └─ todo o resto ───────────────► serviço "site" (arquivos do Vite)
 ```
@@ -44,6 +44,38 @@ Ordem: **Supabase → Vercel (projeto + variáveis) → primeira publicação �
 
    Ela vai na variável `ConnectionStrings__Padrao` da Vercel. Não precisa criar tabelas: a Api roda as migrations ao ligar.
 
+   > No projeto atual o host é `aws-1-sa-east-1.pooler.supabase.com` e o usuário `postgres.zduclzhcdivazxhfkrmr`.
+
+5. **Depois da primeira publicação** (quando as tabelas já existem), ligue o RLS no **SQL Editor** do Supabase.
+   O RLS bloqueia as tabelas para a API pública do Supabase; a nossa Api não é afetada, porque o usuário `postgres`
+   tem permissão para ignorar o RLS (`BYPASSRLS`). O gatilho no fim faz as tabelas criadas por migrations futuras
+   já nascerem com RLS. *(No projeto atual isso já foi feito em 19/11/2026.)*
+
+   ```sql
+   do $$
+   declare t record;
+   begin
+     for t in select tablename from pg_tables where schemaname = 'public' loop
+       execute format('alter table public.%I enable row level security', t.tablename);
+     end loop;
+   end $$;
+
+   create or replace function public.ligar_rls_tabelas_novas()
+   returns event_trigger language plpgsql set search_path = '' as $$
+   declare objeto record;
+   begin
+     for objeto in select * from pg_event_trigger_ddl_commands()
+                   where command_tag = 'CREATE TABLE' and schema_name = 'public' loop
+       execute format('alter table %s enable row level security', objeto.object_identity);
+     end loop;
+   end; $$;
+
+   create event trigger ligar_rls_tabelas_novas on ddl_command_end
+     when tag in ('CREATE TABLE') execute function public.ligar_rls_tabelas_novas();
+   ```
+
+   O painel do Supabase passa a mostrar o aviso informativo "RLS Enabled No Policy": é o esperado (sem políticas, ninguém de fora acessa).
+
 > **Atenção (plano Free):** o Supabase **pausa projetos sem nenhum acesso por 7 dias**. Se o site mostrar erro de banco
 > depois de um tempo parado, abra o projeto no painel do Supabase e clique em **Restore** (grátis, leva ~1 min).
 
@@ -73,9 +105,8 @@ Ordem: **Supabase → Vercel (projeto + variáveis) → primeira publicação �
    | `ASPNETCORE_ENVIRONMENT` | `Production` |
    | `ConnectionStrings__Padrao` | a connection string do passo 1.4 |
    | `Jwt__Chave` | segredo aleatório com 32+ caracteres (comando abaixo) |
-   | `Admin__Email` | e-mail de login do lojista |
-   | `Admin__Senha` | senha forte do lojista |
-   | `Cors__OrigensPermitidas` | `https://commander500.vercel.app` (o endereço final do site) |
+   | `Admin__Email` | e-mail do **primeiro** administrador (só é usado quando ainda não há nenhum) |
+   | `Admin__Senha` | senha desse primeiro administrador |
    | `Semente__DadosDemonstracao` | `true` para a apresentação (cria dados de exemplo **só se o banco estiver vazio**); `false` depois |
    | `Swagger__Habilitado` | `true` |
 
@@ -99,24 +130,29 @@ A primeira vez demora (a Vercel compila o site e a imagem Docker da Api). No fim
 
 | Endereço | Esperado |
 |---|---|
-| `https://commander500.vercel.app/saude` | `{"situacao":"ok"}` |
-| `https://commander500.vercel.app/swagger` | documentação da Api |
-| `https://commander500.vercel.app` | site com o ranking |
-| `https://commander500.vercel.app/admin` | login com `Admin__Email` / `Admin__Senha` |
+| `https://fantasy500.vercel.app/saude` | `{"situacao":"ok"}` |
+| `https://fantasy500.vercel.app/swagger` | documentação da Api |
+| `https://fantasy500.vercel.app` | site com o ranking |
+| `https://fantasy500.vercel.app/admin` | login com `Admin__Email` / `Admin__Senha` |
 
-> A Api **desliga depois de ~5 min sem acesso** e liga de novo sozinha na próxima visita (leva alguns segundos;
-> o site tenta de novo automaticamente). Durante a liga, com gente olhando o "Ao vivo", ela fica ligada.
+> A Api **desliga depois de ~5 min sem acesso** e liga de novo sozinha na próxima visita, com a requisição normal
+> (medido: **~5 s** para a primeira resposta, depois ~0,5 s). O site tenta de novo automaticamente se precisar.
+> Durante a liga, com gente olhando o "Ao vivo", ela fica ligada. Para manter ligada num dia de liga, dá para agendar
+> um ping gratuito em <https://cron-job.org> para `/saude` a cada 4 min **só nos horários da liga** (24 h por dia pode
+> passar da cota de memória do plano grátis).
 
 ---
 
 ## 4. Domínio
 
-- **Grátis:** **Settings → Domains** → edite o domínio `*.vercel.app` do projeto para `commander500.vercel.app`
-  (se o nome estiver ocupado, escolha outro, por exemplo `commander500-fantasy.vercel.app`) e **atualize
-  `Cors__OrigensPermitidas`** com o endereço escolhido.
+Endereço atual: **`fantasy500.vercel.app`**. O antigo `commander500.vercel.app` redireciona para ele.
+
+- **Trocar por outro `*.vercel.app` (grátis):** projeto → **Settings → Domains → Add Domain** → digite o novo nome
+  (ex.: `nome.vercel.app`) → **Save**. Se estiver livre, já funciona. Para o antigo apontar para o novo: no domínio antigo,
+  **Edit** → **Redirect to** o novo (308) → **Save**.
 - **Domínio próprio (pago, ~R$ 40/ano):** registre em <https://registro.br> (ex.: `commander500.com.br`), adicione em
   **Settings → Domains → Add** e crie no registro.br os registros DNS que a Vercel mostrar. O HTTPS é automático.
-  Acrescente o novo endereço em `Cors__OrigensPermitidas` (separado por vírgula).
+  Como site e Api ficam no mesmo endereço, não precisa mexer em CORS nem no código.
 
 ---
 
@@ -155,24 +191,31 @@ Cada execução gasta ~3–5 min da cota grátis de Actions (2.000 min/mês em r
 
 ### Tirar os dados de exemplo depois da apresentação
 
-Os dados de exemplo só são criados quando o banco não tem nenhuma temporada. Para começar a liga de verdade do zero:
+Os dados de exemplo são criados **toda vez que a Api liga e o banco não tem nenhuma temporada**. Então a ordem importa:
 
-1. Na Vercel, troque `Semente__DadosDemonstracao` para `false`.
-2. No Supabase → **SQL Editor**, rode (apaga **tudo**, inclusive o admin, que é recriado ao ligar a Api):
+1. Na Vercel, troque `Semente__DadosDemonstracao` para `false` e faça **Deployments → ⋯ → Redeploy** no último deploy.
+   Espere ficar *Ready*.
+2. No Supabase → **SQL Editor**, rode (apaga temporadas, jogadores, decks, comandantes e rodadas; **mantém** os
+   administradores, o regulamento e o RLS):
 
    ```sql
-   drop schema public cascade;
-   create schema public;
-   grant all on schema public to postgres;
+   truncate table "Cadeiras", "Mesas", "Participacoes", "Rodadas", "Etapas",
+                  "DecksComandantes", "Decks", "Jogadores", "Comandantes", "Temporadas"
+     restart identity cascade;
    ```
 
-3. Na Vercel → **Deployments** → no último → **⋯ → Redeploy**. A Api recria as tabelas vazias e o admin.
+3. Abra o site: ele aparece vazio, pronto para cadastrar a temporada de verdade.
 
 ---
 
-## Trocar senha do admin, variáveis etc.
+## Administradores, variáveis etc.
 
-- **Senha do admin:** altere `Admin__Senha` na Vercel e faça **Redeploy**. Trocar `Admin__Email` cria outro admin.
+- **Cadastrar, excluir e trocar senha de administradores:** no site, **Admin → Administradores**. Ninguém exclui o
+  próprio acesso e o último administrador não pode ser excluído. Quem é excluído perde o acesso na hora.
+- `Admin__Email` / `Admin__Senha` só valem para criar o **primeiro** administrador (banco sem nenhum). Mudar essas
+  variáveis depois **não** altera ninguém.
+- **Todo mundo perdeu a senha?** No Supabase → SQL Editor: `delete from "Administradores";` → na Vercel, confira
+  `Admin__Email`/`Admin__Senha` e faça **Redeploy**. A Api recria o primeiro administrador com esses dados.
 - Toda mudança de variável na Vercel só vale depois de um **Redeploy**.
 - **Logs da Api:** Vercel → projeto → **Logs** (o que a Api escreve no console aparece lá).
 
@@ -183,7 +226,7 @@ Os dados de exemplo só são criados quando o banco não tem nenhuma temporada. 
 | `/saude` dá erro 502/504 | Api não subiu: veja **Logs**. Confira `PORT=8080`, `Jwt__Chave` (32+ caracteres) e a connection string |
 | Erro de conexão com o banco nos logs | connection string errada, senha errada ou projeto do Supabase **pausado** (clique em Restore) |
 | `Tenant or user not found` | o usuário precisa ser `postgres.<ref>` (com o ref do projeto) no Session pooler |
-| Login retorna 401 | e-mail/senha diferentes de `Admin__Email`/`Admin__Senha` (o e-mail é comparado em minúsculas) |
+| Login retorna 401 | e-mail ou senha errados (o e-mail é comparado em minúsculas). Peça a outro admin para trocar a senha em **Admin → Administradores** |
 | Rota como `/ao-vivo` dá 404 ao recarregar | o `vercel.json` da raiz não foi lido: publique a partir da raiz do repositório |
 | Action falha em "Enviar para a Vercel" | segredos `VERCEL_*` ausentes ou token vencido |
 

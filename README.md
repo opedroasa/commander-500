@@ -171,7 +171,7 @@ dotnet run --project src/Commander500.Api --launch-profile so-api
 
 | | |
 |---|---|
-| Endereço | `https://commander500.vercel.app` (site em `/`, Api em `/api`, Swagger em `/swagger`) |
+| Endereço | `https://fantasy500.vercel.app` (site em `/`, Api em `/api`, Swagger em `/swagger`) |
 | Site + Api | Vercel, configurados no [`vercel.json`](vercel.json) da raiz (serviços `site` e `api`) |
 | Banco | Supabase (PostgreSQL, região São Paulo) |
 | Como publicar | **merge na `main`** → GitHub Actions roda os testes e publica ([`publicar.yml`](.github/workflows/publicar.yml)) |
@@ -189,7 +189,8 @@ Passo a passo completo (criar os projetos, variáveis, domínio): [docs/DEPLOY.m
 5. Abra **Ao vivo** em outra aba ou no celular e use "Encontre sua mesa".
 6. **Iniciar rodada:** o timer aparece igual em todas as telas, e recarregar a página não reinicia.
 7. Toque no vencedor de cada mesa e confirme, ou marque **Empate** → **Encerrar rodada** → o ranking atualiza.
-8. **Cadastros:** jogadores (perfil com **Novo deck**, comandante buscado no Scryfall), decks (aprovar/reprovar com observação) e a **Pontuação** da temporada (trava após a 1ª rodada encerrada).
+8. **Administradores:** quem pode entrar na área do lojista (cadastrar, trocar senha, excluir).
+9. **Cadastros:** jogadores (perfil com **Novo deck**, comandante buscado no Scryfall), decks (aprovar/reprovar com observação) e a **Pontuação** da temporada (trava após a 1ª rodada encerrada).
 
 **No celular:** use o endereço publicado. Para testar a versão local no celular, rode o site com `npm run dev --prefix web -- --host` e acesse `http://<ip-do-computador>:5173` no mesmo Wi-Fi.
 

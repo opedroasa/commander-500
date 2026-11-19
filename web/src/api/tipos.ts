@@ -288,6 +288,14 @@ export interface DetalheEtapa {
   rodadas: Rodada[]
 }
 
+// ---------- Administradores (usuários da área do lojista)
+export interface Administrador {
+  id: number
+  email: string
+  /** true quando é quem está logado */
+  usuarioAtual: boolean
+}
+
 // ---------- Regulamento
 export interface Regulamento {
   /** HTML do editor */

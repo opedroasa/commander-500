@@ -7,6 +7,10 @@ namespace Commander500.Aplicacao.Modelos;
 
 public record LoginEnvio(string Email, string Senha);
 
+// ----- Administradores
+public record AdministradorEnvio(string Email, string Senha);
+public record NovaSenhaEnvio(string Senha);
+
 /// <param name="Configuracao">Opcional: pontuação, bye, timer e desempate.</param>
 public record TemporadaEnvio(string Nome, DateOnly DataInicio, DateOnly? DataFim, bool Ativa = true, ConfiguracaoTemporada? Configuracao = null);
 

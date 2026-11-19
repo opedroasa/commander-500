@@ -7,6 +7,10 @@ namespace Commander500.Aplicacao.Modelos;
 
 public record LoginResposta(string Token, DateTime ExpiraEm, string Email);
 
+// ----- Administradores
+/// <param name="UsuarioAtual">true quando é quem está logado (a tela mostra "você" e não deixa excluir).</param>
+public record AdministradorResposta(int Id, string Email, bool UsuarioAtual);
+
 // ----- Temporadas
 /// <param name="ProximaEtapaEm">Próxima etapa marcada (UTC), para o aviso da página inicial.</param>
 /// <param name="IdEtapaFinal">Etapa da mesa final, quando já foi formada.</param>
