@@ -145,7 +145,7 @@ A primeira vez demora (a Vercel compila o site e a imagem Docker da Api). No fim
 
 ## 4. Domínio
 
-Endereço atual: **`fantasy500.vercel.app`**. O antigo `commander500.vercel.app` redireciona para ele.
+Endereço atual: **`fantasy500.vercel.app`** (o antigo `commander500.vercel.app` foi removido em 19/11/2026).
 
 - **Trocar por outro `*.vercel.app` (grátis):** projeto → **Settings → Domains → Add Domain** → digite o novo nome
   (ex.: `nome.vercel.app`) → **Save**. Se estiver livre, já funciona. Para o antigo apontar para o novo: no domínio antigo,
