@@ -13,7 +13,7 @@ public static class InjecaoDependencia
     /// <summary>Registra banco, Scryfall, JWT e senha. Chamado no Program.cs da Api.</summary>
     public static IServiceCollection AdicionarInfraestrutura(this IServiceCollection servicos, IConfiguration configuracao)
     {
-        // ----- Banco: ConnectionStrings__Padrao ou DATABASE_URL (padrão do Render/Neon)
+        // ----- Banco: ConnectionStrings__Padrao ou DATABASE_URL (Supabase em produção, Docker local em dev)
         var stringConexao = new[] { configuracao.GetConnectionString("Padrao"), Environment.GetEnvironmentVariable("DATABASE_URL") }
             .FirstOrDefault(s => !string.IsNullOrWhiteSpace(s))
             ?? throw new InvalidOperationException("Connection string ausente: defina ConnectionStrings__Padrao (ou DATABASE_URL).");

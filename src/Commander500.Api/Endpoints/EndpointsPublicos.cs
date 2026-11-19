@@ -10,7 +10,7 @@ public static class EndpointsPublicos
     public static void MapearEndpointsPublicos(this IEndpointRouteBuilder app)
     {
         app.MapGet("/saude", () => Results.Ok(new { situacao = "ok" })).WithTags("Saúde").AllowAnonymous()
-            .WithSummary("Usado pelo ping que mantém a Api acordada no Render.");
+            .WithSummary("Diz se a Api está no ar (sem consultar o banco). Útil para testar a publicação e para pings de monitoramento.");
 
         var temporadas = app.MapGroup("/api/temporadas").WithTags("Público · Temporadas").AllowAnonymous();
         temporadas.MapGet("/", (ServicoTemporada s) => s.Listar());

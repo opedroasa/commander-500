@@ -5,7 +5,7 @@ namespace Commander500.Infraestrutura.Dados;
 public static class StringConexao
 {
     /// <summary>
-    /// Aceita tanto o formato do Npgsql ("Host=...;Database=...") quanto o endereço postgres:// que o Neon e o Render
+    /// Aceita tanto o formato do Npgsql ("Host=...;Database=...") quanto o endereço postgres:// que o Supabase (e outros)
     /// fornecem, e devolve sempre o formato do Npgsql.
     /// </summary>
     public static string Normalizar(string valor)

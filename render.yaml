@@ -1,25 +1,23 @@
-# Render Blueprint — Api (Docker, plano grátis).
+# PLANO B (não usado hoje). A publicação oficial é Vercel (site + Api) + Supabase (banco): veja docs/DEPLOY.md.
+# Se um dia a Api precisar sair da Vercel, o Render roda a mesma imagem Docker de graça:
 # Render → New → Blueprint → escolher este repositório. As variáveis com `sync: false` são pedidas na criação.
-# Passo a passo em docs/DEPLOY.md.
 services:
   - type: web
     name: commander500-api
     runtime: docker
     plan: free
-    region: virginia            # mesma região do banco no Neon (us-east-1)
-    dockerfilePath: ./Dockerfile
-    dockerContext: .
+    region: virginia
+    dockerfilePath: ./src/Dockerfile
+    dockerContext: ./src
     healthCheckPath: /saude
     autoDeploy: true
     buildFilter:                # só publica a Api de novo quando mudam arquivos do backend
       paths:
         - src/**
-        - Dockerfile
-        - Commander500.sln
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
-      - key: DATABASE_URL       # connection string do Neon (postgresql://...?sslmode=require)
+      - key: DATABASE_URL       # connection string do Supabase (Session pooler)
         sync: false
       - key: Jwt__Chave         # segredo aleatório gerado pelo Render
         generateValue: true
@@ -27,7 +25,7 @@ services:
         sync: false
       - key: Admin__Senha
         sync: false
-      - key: Cors__OrigensPermitidas   # ex.: https://commander500.vercel.app
+      - key: Cors__OrigensPermitidas   # endereço do site na Vercel
         sync: false
       - key: Semente__DadosDemonstracao
         value: "false"

@@ -1,0 +1,44 @@
+# Publica o site + Api na Vercel sempre que algo entra na main (depois de rodar os testes).
+# Precisa de 3 segredos no GitHub (Settings → Secrets and variables → Actions):
+#   VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID   — passo a passo em docs/DEPLOY.md
+# Também dá para rodar na mão: aba Actions → "Publicar na Vercel" → Run workflow.
+name: Publicar na Vercel
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: publicar-producao
+  cancel-in-progress: false
+
+jobs:
+  verificar:
+    name: Testes e build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: dotnet test
+      - run: npm ci --prefix web
+      - run: npm run build --prefix web
+
+  publicar:
+    name: Publicar (produção)
+    needs: verificar
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enviar para a Vercel
+        run: npx --yes vercel@65.11.0 deploy --prod --yes --token "${{ secrets.VERCEL_TOKEN }}"

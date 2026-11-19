@@ -482,3 +482,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Vercel CLI (ligação local com o projeto; tem IDs da conta)
+.vercel/
