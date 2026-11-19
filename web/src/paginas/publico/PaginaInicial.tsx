@@ -75,7 +75,8 @@ export function PaginaInicial() {
             <CartoesArteComandante linhas={comandantes.data} ordem="jogados" />
           </section>
 
-          <section className="grid gap-4 lg:grid-cols-2">
+          {/* grid-cols-1 = coluna "minmax(0, 1fr)": pode encolher até a largura da tela (sem ela, a coluna estica até o texto mais comprido). */}
+          <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <div className="cartao p-4">
               <TituloSecao titulo="Top comandantes" subtitulo="% de vitória" link={{ para: '/comandantes?ordem=percentual', rotulo: 'Ver todos' }} />
               <ListaComandantes linhas={comandantes.data} ordem="percentual" limite={5} minimoPartidas={3} />
