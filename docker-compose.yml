@@ -20,7 +20,7 @@ services:
   # Opcional: rodar a Api no Docker também (docker compose --profile api up --build)
   api:
     profiles: ["api"]
-    build: .
+    build: ./src
     depends_on:
       banco:
         condition: service_healthy

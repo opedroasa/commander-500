@@ -23,7 +23,7 @@ e o JSON que vem do Scryfall. Estilo igual ao da Gestão Rastreio Wiki (sem o pr
 ## Estrutura (arquitetura limpa)
 
 ```
-Commander500.sln
+Commander500.sln                   6 projetos; F5 na Commander500.Api (perfil http) sobe banco + Api + site (SpaProxy)
 src/Commander500.Dominio/          não depende de nada
   Entidades/                       Temporada, Jogador, Comandante, Deck, Etapa, Rodada (+ Participacao, Mesa, Cadeira), Administrador, Regulamento
   Enumeradores/                    SituacaoRodada, SituacaoDeck, ResultadoMesa, CriterioDesempate, ModoPontuacao
@@ -44,7 +44,7 @@ src/Commander500.Infraestrutura/   EF Core + PostgreSQL e serviços técnicos
   Seguranca/                       OpcoesJwt, GeradorTokenJwt, ServicoSenha
 src/Commander500.Api/              Program.cs, Endpoints/ (EndpointsPublicos, EndpointsAdmin), Comum/TratadorErros
 tests/Commander500.Testes/         xUnit, testa Dominio/Regras com grafo em memória (MontadorRodada, FabricaDecks)
-web/                               React 19 + Vite + TS + Tailwind v4, mobile-first
+web/                               React 19 + Vite + TS + Tailwind v4, mobile-first (projeto Commander500.Web.esproj na solução)
   src/api/                         cliente.ts (fetch + JWT), tipos.ts (espelha Modelos/), consultas.ts (TanStack Query)
   src/autenticacao/                ContextoAutenticacao (login do admin)
   src/componentes/                 DesenhoMesa (mesa retangular), Cronometro, QuadroRodada, Layout (logo + tema), ArteComandante,
@@ -56,9 +56,13 @@ web/                               React 19 + Vite + TS + Tailwind v4, mobile-fi
                                    PaginaTemporadas (pontuação, próxima etapa, mesa final), PaginaEditarRegras
   src/utilitarios/                 formatacao, relogio, tema, comandantes
 docker-compose.yml                 Postgres local (serviço "banco") + perfil "api" opcional
-Dockerfile                         imagem da Api (contexto = raiz do repo)
-scripts/dev.ps1, dev.sh            sobe banco + Api + site com um comando (guia completo no README.md)
-render.yaml, web/vercel.json, docs/DEPLOY.md   publicação (Render + Neon + Vercel) — preparada, ainda não usada
+src/Dockerfile                     imagem da Api (contexto = pasta src/; usada pela Vercel, docker-compose e Render)
+scripts/dev.ps1, dev.sh            sobe banco + Api (que abre o site) com um comando (guia completo no README.md)
+.vscode/                           F5 no VS Code (mesmo fluxo do Visual Studio)
+vercel.json, .vercelignore        publicação na Vercel: serviço "site" (web/, Vite) + serviço "api" (src/, container) no mesmo domínio
+.github/workflows/publicar.yml     merge na main → dotnet test + build do site → vercel deploy --prod
+docs/DEPLOY.md, docs/MANUAL-PEDRO.md   passo a passo da publicação (Vercel + Supabase) e dos acessos
+render.yaml                        plano B (Api no Render), não usado
 ```
 
 Caminho de uma requisição: tela React → `consultas.ts` → endpoint (Api) → serviço (Aplicação) → regras (Domínio) → `IContextoBanco` (EF).
@@ -84,9 +88,9 @@ npm run build --prefix web                     # tsc -b + vite build → web/dis
 npm run lint --prefix web                      # oxlint
 ```
 
-`VITE_API_URL` (ver `web/.env.example`) fica vazio em dev; em produção é o endereço da Api.
+`VITE_API_URL` (ver `web/.env.example`) fica vazio em dev e na Vercel (site e Api no mesmo domínio); só é usado se a Api for para outro domínio.
 `dotnet ef` é ferramenta local (`.config/dotnet-tools.json`); rode `dotnet tool restore` numa máquina nova.
-Swagger: `/swagger` (a raiz `/` redireciona; o perfil **http** do Visual Studio abre o navegador nele). Saúde: `/saude`.
+Swagger: `/swagger` (a raiz `/` redireciona; o perfil **so-api** abre o navegador nele, o perfil **http** abre o site). Saúde: `/saude`.
 Admin de dev: `admin@fantasystore.local` / `admin123`.
 A porta 5080 também é usada pela Gestão Rastreio Wiki (outro projeto do Pedro): não dá para rodar as duas Apis ao mesmo tempo nela.
 
@@ -102,7 +106,7 @@ A porta 5080 também é usada pela Gestão Rastreio Wiki (outro projeto do Pedro
 | `Semente__DadosDemonstracao` | `true` cria 1 temporada + 10 jogadores/decks + 3 rodadas encerradas se não houver temporadas |
 | `Swagger__Habilitado` | padrão `true` |
 | `Scryfall__Habilitado` | padrão `true`: rotina em 2º plano que busca arte/cores dos comandantes salvos só com o nome |
-| `PORT` | se definido (Render), a Api escuta nessa porta |
+| `PORT` | se definido, a Api escuta nessa porta (Dockerfile e Vercel: `8080`) |
 
 ## Convenções
 
@@ -172,5 +176,8 @@ A porta 5080 também é usada pela Gestão Rastreio Wiki (outro projeto do Pedro
 - **Próxima etapa**: `Temporada.ProximaEtapaEm` (UTC) e `PrazoListas` aparecem no banner da página inicial; não dependem da trava.
 - **Regulamento**: um registro com HTML do editor visual (TipTap), mostrado em `/regras` (sanitizado com DOMPurify) e editado
   em `/admin/regras`. O semeador grava o texto do tratado quando o banco ainda não tem regulamento.
+- **Publicação** (decisão de 19/11/2026): Vercel (site + Api no mesmo projeto, Api pelo *Container Runtime*, em Beta) +
+  Supabase (Postgres, Session pooler, Data API desligada). Sem CORS/`VITE_API_URL` em produção. Deploy pelo GitHub
+  Actions com token porque o repositório é privado de outra conta (o Hobby da Vercel não publica commits de terceiros).
 - Arquitetura limpa com **serviços de aplicação** (sem MediatR) e banco **PostgreSQL** com nomes de tabela = nome do DbSet
   (sem `TB_`). Decisão do Pedro em 18/11/2026; as migrations recomeçaram do zero (`Inicial`).

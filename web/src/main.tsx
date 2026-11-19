@@ -24,7 +24,7 @@ const cacheConsultas = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 10_000,
-      // A Api no plano grátis do Render demora para acordar: tenta de novo em erro de rede, nunca em erro 4xx.
+      // A Api no plano grátis (Vercel) desliga quando fica parada e leva alguns segundos para ligar: tenta de novo em erro de rede, nunca em erro 4xx.
       retry: (tentativas, erro) => (erro instanceof ErroApi && erro.status >= 400 && erro.status < 500 ? false : tentativas < 3),
       retryDelay: (tentativa) => Math.min(1000 * 2 ** tentativa, 8000),
     },

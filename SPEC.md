@@ -12,12 +12,12 @@ O orçamento do deck (teto pelo menor preço da Liga Magic) é validado **fora d
 
 | Camada | Tecnologia | Hospedagem (free) |
 |---|---|---|
-| Backend | ASP.NET Core (.NET 8 LTS ou mais recente), EF Core, Npgsql | Render (Docker) |
-| Banco | PostgreSQL | Neon (prod) · Docker local (dev) |
-| Frontend | React + Vite + TypeScript + Tailwind, mobile-first | Vercel / Netlify / Cloudflare Pages |
+| Backend | ASP.NET Core (.NET 8 LTS ou mais recente), EF Core, Npgsql | Vercel (container Docker) |
+| Banco | PostgreSQL | Supabase (prod) · Docker local (dev) |
+| Frontend | React + Vite + TypeScript + Tailwind, mobile-first | Vercel (mesmo projeto e domínio da API) |
 | Auth | JWT para o(s) admin(s) – usuário do lojista via seed/variável de ambiente | — |
 
-Requisitos de portabilidade: Dockerfile para a API, connection string e segredos via variável de ambiente, migrations do EF versionadas, CORS configurável. Endpoint `GET /health` para ping de keep-alive (evitar cold start do Render).
+Requisitos de portabilidade: Dockerfile para a API, connection string e segredos via variável de ambiente, migrations do EF versionadas, CORS configurável. Endpoint `GET /saude` para verificar se a API está no ar.
 
 ## 3. Glossário
 

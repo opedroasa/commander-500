@@ -1,0 +1,13 @@
+# O que NÃO vai para a Vercel ao publicar (a Vercel compila tudo do zero lá).
+**/node_modules
+**/bin
+**/obj
+**/dist
+.vs
+.vscode
+.claude
+.git
+tests
+docs
+scripts
+web/Commander500.Web.esproj

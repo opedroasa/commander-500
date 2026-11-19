@@ -14,7 +14,7 @@ using Microsoft.OpenApi.Models;
 var builder = WebApplication.CreateBuilder(args);
 var configuracao = builder.Configuration;
 
-// O Render (e serviços parecidos) informa a porta na variável PORT.
+// A Vercel (container), o Docker e o Render usam a porta da variável PORT.
 if (Environment.GetEnvironmentVariable("PORT") is { Length: > 0 } porta)
     builder.WebHost.UseUrls($"http://0.0.0.0:{porta}");
 

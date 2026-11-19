@@ -1,0 +1,24 @@
+{
+  // F5 no VS Code: sobe o banco (Docker), compila e inicia a Api; a Api abre o site sozinha (SpaProxy).
+  // Precisa da extensão "C# Dev Kit" (ms-dotnettools.csdevkit).
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Commander 500 (Api + Site)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "preparar",
+      "program": "${workspaceFolder}/src/Commander500.Api/bin/Debug/net9.0/Commander500.Api.dll",
+      "cwd": "${workspaceFolder}/src/Commander500.Api",
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "http://localhost:5080",
+        "ASPNETCORE_HOSTINGSTARTUPASSEMBLIES": "Microsoft.AspNetCore.SpaProxy"
+      },
+      "serverReadyAction": {
+        "action": "openExternally",
+        "pattern": "Now listening on:\\s+(https?://\\S+)"
+      }
+    }
+  ]
+}

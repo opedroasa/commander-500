@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.VisualStudio.JavaScript.Sdk/1.0.7204101">
+
+  <!--
+    Site (React + Vite) como projeto da solução, para aparecer no Visual Studio ao lado da Api.
+    Não precisa iniciar este projeto: ao rodar a Api (F5), ela mesma abre o site (veja SpaRoot no Commander500.Api.csproj).
+  -->
+  <PropertyGroup>
+    <StartupCommand>npm run dev</StartupCommand>
+    <!-- Compilar no Visual Studio só instala as dependências (npm install); o build de produção é feito pela Vercel. -->
+    <ShouldRunBuildScript>false</ShouldRunBuildScript>
+    <!-- Fora do Visual Studio (dotnet build / dotnet test) não mexe no npm. -->
+    <ShouldRunNpmInstall Condition="'$(BuildingInsideVisualStudio)' != 'true'">false</ShouldRunNpmInstall>
+    <BuildOutputFolder>$(MSBuildProjectDirectory)\dist</BuildOutputFolder>
+  </PropertyGroup>
+
+</Project>

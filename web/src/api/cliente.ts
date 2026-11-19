@@ -2,7 +2,7 @@
 // - manda o token de login (Authorization: Bearer) quando o admin está logado
 // - transforma o erro da API (ProblemDetails com "detail") em ErroApi com a mensagem em português
 
-/** Endereço da API. Vazio em desenvolvimento (o Vite repassa /api). Em produção: VITE_API_URL=https://<api>.onrender.com */
+/** Endereço da API. Vazio em desenvolvimento (o Vite repassa /api) e na Vercel (site e Api no mesmo endereço). Só preencha VITE_API_URL se a Api ficar em outro domínio. */
 const ENDERECO_BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '')
 
 const CHAVE_SESSAO = 'c500.sessao'

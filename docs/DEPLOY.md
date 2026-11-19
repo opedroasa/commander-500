@@ -1,138 +1,195 @@
-# Deploy – Commander 500
+# Publicação – Commander 500
 
-Tudo no plano gratuito:
+Tudo no plano gratuito, e **o site e a Api ficam no mesmo endereço** (ex.: `https://commander500.vercel.app`):
 
 | Parte | Serviço | Arquivo |
 |---|---|---|
-| Banco PostgreSQL | **Neon** | — |
-| API (.NET 9, Docker) | **Render** | [`render.yaml`](../render.yaml), [`Dockerfile`](../Dockerfile) |
-| Frontend (React) | **Vercel** | [`web/vercel.json`](../web/vercel.json) |
-| Keep-alive da API | **cron-job.org** (ou UptimeRobot) | — |
+| Site (React) | **Vercel**, serviço `site` | [`vercel.json`](../vercel.json) |
+| Api (.NET 9 em container Docker) | **Vercel**, serviço `api` (*Container Runtime*, em Beta) | [`vercel.json`](../vercel.json), [`src/Dockerfile`](../src/Dockerfile) |
+| Banco PostgreSQL | **Supabase** | — |
+| Publicação automática | **GitHub Actions** (a cada merge na `main`) | [`.github/workflows/publicar.yml`](../.github/workflows/publicar.yml) |
 
-Ordem: **GitHub → Neon → Render → Vercel → CORS no Render → keep-alive**.
-
-> Região: o Render não tem datacenter no Brasil. Coloque API e banco **na mesma região** (Render *Virginia* + Neon *AWS US East 1*). A latência API↔banco pesa mais que a do usuário↔API, porque cada tela faz várias consultas.
-
----
-
-## 0. Código no GitHub
-
-Render e Vercel fazem deploy a partir do repositório. Crie um repositório **privado** vazio e envie:
-
-```bash
-git remote add origin https://github.com/<usuario>/<repo>.git
+```
+navegador ──► https://commander500.vercel.app
+                 ├─ /api/*, /saude, /swagger ──► serviço "api" (container .NET) ──► Supabase (Postgres)
+                 └─ todo o resto ───────────────► serviço "site" (arquivos do Vite)
 ```
 
-```bash
-git push -u origin main
-```
+Como site e Api estão no mesmo endereço, **não precisa de CORS nem de `VITE_API_URL`**.
+
+Ordem: **Supabase → Vercel (projeto + variáveis) → primeira publicação → domínio → publicação automática**.
 
 ---
 
-## 1. Neon (banco)
+## 1. Supabase (banco)
 
-1. Crie uma conta em <https://neon.tech> e um projeto: **Region = AWS US East 1 (N. Virginia)**, Postgres 16+.
-2. Em **Connect**, deixe **Connection pooling desligado** (conexão direta; o EF Core aplica migrations no startup e o tráfego é baixo).
-3. Copie a connection string, no formato:
-   `postgresql://<user>:<senha>@ep-xxxx.us-east-1.aws.neon.tech/neondb?sslmode=require`
-   Ela vai na variável `DATABASE_URL` do Render. A API aceita esse formato de URI direto.
+1. Entre em <https://supabase.com/dashboard> → **New project**.
+   - **Name:** `commander500`
+   - **Database Password:** clique em **Generate a password** e **guarde** num gerenciador de senhas (ela não aparece de novo).
+   - **Region:** **South America (São Paulo)** — `sa-east-1`.
+   - **Plan:** Free.
+   - Em **Security options**, **desmarque "Enable Data API"**. Nós não usamos a API REST do Supabase; deixá-la ligada
+     exporia as tabelas (inclusive a de administradores) para quem tiver a chave pública do projeto.
+     > Se o projeto já foi criado com ela ligada: **Project Settings → Data API** → desligue.
+2. Espere o projeto ficar verde (1–2 min).
+3. Clique em **Connect** (barra do topo) → aba **Connection String** → **Type: .NET** → **Method: Session pooler**.
+   - Use o **Session pooler** (porta 5432 no host `...pooler.supabase.com`): a conexão direta do Supabase é só IPv6,
+     e a Vercel precisa de IPv4. O *Transaction pooler* (porta 6543) não serve, porque o EF Core usa um *lock* de sessão
+     ao aplicar as migrations.
+4. Monte a connection string assim (troque `<ref>` e `<senha>`):
 
-Não é preciso criar tabelas: a API roda as migrations ao subir (`Banco__MigrarAoIniciar=true`).
+   ```
+   Host=aws-0-sa-east-1.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.<ref>;Password=<senha>;SSL Mode=Require;Maximum Pool Size=5
+   ```
+
+   Ela vai na variável `ConnectionStrings__Padrao` da Vercel. Não precisa criar tabelas: a Api roda as migrations ao ligar.
+
+> **Atenção (plano Free):** o Supabase **pausa projetos sem nenhum acesso por 7 dias**. Se o site mostrar erro de banco
+> depois de um tempo parado, abra o projeto no painel do Supabase e clique em **Restore** (grátis, leva ~1 min).
 
 ---
 
-## 2. Render (API)
+## 2. Vercel (projeto e variáveis)
 
-1. Crie uma conta em <https://render.com> e conecte o GitHub.
-2. **New → Blueprint** → selecione o repositório. O Render lê o [`render.yaml`](../render.yaml) e cria o serviço `commander500-api` (Docker, plano free, health check em `/saude`).
-3. Preencha as variáveis pedidas:
+1. Entre em <https://vercel.com> com o GitHub.
+2. Instale a Vercel CLI só na hora, com `npx` (não precisa instalar nada globalmente). Na **raiz do projeto**:
+
+   ```bash
+   npx vercel@65.11.0 login
+   ```
+
+   ```bash
+   npx vercel@65.11.0 link --yes --project commander500
+   ```
+
+   Isso cria o projeto `commander500` na sua conta e grava a ligação na pasta `.vercel/` (ela fica fora do Git).
+   A Vercel lê o [`vercel.json`](../vercel.json) da raiz e já entende que há dois serviços (`site` e `api`).
+3. **Settings → Functions → Function Region:** escolha **São Paulo, Brazil (gru1)**, perto do banco.
+4. **Settings → Environment Variables** (ambiente **Production**):
 
    | Variável | Valor |
    |---|---|
-   | `DATABASE_URL` | a connection string do Neon |
+   | `PORT` | `8080` (porta em que o container da Api escuta) |
+   | `ASPNETCORE_ENVIRONMENT` | `Production` |
+   | `ConnectionStrings__Padrao` | a connection string do passo 1.4 |
+   | `Jwt__Chave` | segredo aleatório com 32+ caracteres (comando abaixo) |
    | `Admin__Email` | e-mail de login do lojista |
-   | `Admin__Senha` | senha forte (é a senha de login do admin) |
-   | `Cors__OrigensPermitidas` | por enquanto `*`; troque no passo 4 |
+   | `Admin__Senha` | senha forte do lojista |
+   | `Cors__OrigensPermitidas` | `https://commander500.vercel.app` (o endereço final do site) |
+   | `Semente__DadosDemonstracao` | `true` para a apresentação (cria dados de exemplo **só se o banco estiver vazio**); `false` depois |
+   | `Swagger__Habilitado` | `true` |
 
-   `Jwt__Chave` é gerada automaticamente pelo Render (`generateValue`). `Semente__DadosDemonstracao=false`: produção começa vazia.
-4. Aguarde o build (5–10 min na primeira vez) e confira:
-   - `https://commander500-api.onrender.com/saude` → `{"situacao":"ok"}`
-   - `https://commander500-api.onrender.com/swagger`
+   Gerar a `Jwt__Chave` no PowerShell:
 
-   (O nome real do host aparece no painel do serviço.)
-
-**Trocar a senha do admin:** altere `Admin__Senha` no Render e salve. O serviço reinicia e a senha é atualizada no banco. Trocar `Admin__Email` cria um novo admin (o antigo continua existindo).
-
----
-
-## 3. Vercel (frontend)
-
-1. Crie uma conta em <https://vercel.com> e conecte o GitHub.
-2. **Add New → Project** → importe o repositório.
-3. Configure:
-   - **Root Directory:** `web`
-   - **Framework Preset:** Vite (detectado automaticamente; build `npm run build`, saída `dist`)
-   - **Environment Variable:** `VITE_API_URL` = `https://commander500-api.onrender.com` (sem barra no final)
-4. **Deploy.** Anote a URL de produção (ex.: `https://commander500.vercel.app`).
-
-O [`web/vercel.json`](../web/vercel.json) faz o fallback de rotas para `index.html`, então links como `/temporadas/1` e `/ao-vivo` funcionam ao recarregar a página.
-
-> `VITE_API_URL` é embutida no build. Se mudar o endereço da API, faça **Redeploy** na Vercel.
+   ```powershell
+   $b = New-Object byte[] 48; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b)
+   ```
 
 ---
 
-## 4. CORS (de volta ao Render)
+## 3. Primeira publicação
 
-No serviço `commander500-api` → **Environment**, troque `Cors__OrigensPermitidas` pela URL da Vercel:
+Na raiz do projeto, com a `main` atualizada (`git switch main` e `git pull`):
 
-```
-https://commander500.vercel.app
+```bash
+npx vercel@65.11.0 deploy --prod
 ```
 
-Para mais de uma origem (ex.: domínio próprio), separe por vírgula. Salvar reinicia o serviço.
+A primeira vez demora (a Vercel compila o site e a imagem Docker da Api). No fim aparece o endereço. Confira:
 
-Deploys de *preview* da Vercel têm outra URL e serão bloqueados pelo CORS; isso é esperado. Use `*` só temporariamente se precisar testar um preview.
+| Endereço | Esperado |
+|---|---|
+| `https://commander500.vercel.app/saude` | `{"situacao":"ok"}` |
+| `https://commander500.vercel.app/swagger` | documentação da Api |
+| `https://commander500.vercel.app` | site com o ranking |
+| `https://commander500.vercel.app/admin` | login com `Admin__Email` / `Admin__Senha` |
+
+> A Api **desliga depois de ~5 min sem acesso** e liga de novo sozinha na próxima visita (leva alguns segundos;
+> o site tenta de novo automaticamente). Durante a liga, com gente olhando o "Ao vivo", ela fica ligada.
 
 ---
 
-## 5. Keep-alive (evitar cold start)
+## 4. Domínio
 
-O plano free do Render **desliga a API após 15 min sem requisições**; a primeira visita depois disso leva ~30–60 s (o frontend mostra a mensagem "o servidor pode estar acordando" e tenta de novo sozinho).
+- **Grátis:** **Settings → Domains** → edite o domínio `*.vercel.app` do projeto para `commander500.vercel.app`
+  (se o nome estiver ocupado, escolha outro, por exemplo `commander500-fantasy.vercel.app`) e **atualize
+  `Cors__OrigensPermitidas`** com o endereço escolhido.
+- **Domínio próprio (pago, ~R$ 40/ano):** registre em <https://registro.br> (ex.: `commander500.com.br`), adicione em
+  **Settings → Domains → Add** e crie no registro.br os registros DNS que a Vercel mostrar. O HTTPS é automático.
+  Acrescente o novo endereço em `Cors__OrigensPermitidas` (separado por vírgula).
 
-Para manter a API acordada, crie um ping gratuito em <https://cron-job.org> (ou UptimeRobot):
+---
 
-- **URL:** `https://commander500-api.onrender.com/saude`
-- **Intervalo:** a cada **10 minutos**
+## 5. Publicação automática (GitHub Actions)
 
-O plano free tem 750 h/mês de instância, suficiente para 1 serviço ligado 24/7. O `/saude` não consulta o banco, então o Neon pode hibernar normalmente (acorda em ~1 s na primeira consulta).
+Depois disso, **todo merge na `main` publica sozinho**: o workflow [`publicar.yml`](../.github/workflows/publicar.yml)
+roda `dotnet test` e o build do site e, se passar, envia para a Vercel.
 
-> Não use GitHub Actions para o ping: em repositório privado cada execução consome no mínimo 1 minuto da cota gratuita (2.000 min/mês), e um ping a cada 10 min gasta ~4.300 min/mês.
+Por que pelo GitHub Actions e não pela integração Git da Vercel? O repositório é **privado e está na conta do Pedro**, e o
+plano Hobby da Vercel não aceita deploy automático de commits de outra pessoa em repositório privado. Com o token,
+qualquer merge na `main` publica, não importa quem fez.
 
-Se preferir economizar horas, ative o ping só nos dias de liga.
+Configuração (uma vez só, **feita pelo dono do repositório**):
+
+1. **Token:** na Vercel → avatar → **Account Settings → Tokens → Create** (nome `github-actions`, sem validade ou 1 ano).
+2. **IDs:** abra `.vercel/project.json` (criado no passo 2.2): tem o `orgId` e o `projectId`.
+3. No GitHub: **repositório → Settings → Secrets and variables → Actions → New repository secret**:
+
+   | Secret | Valor |
+   |---|---|
+   | `VERCEL_TOKEN` | o token do passo 1 |
+   | `VERCEL_ORG_ID` | `orgId` |
+   | `VERCEL_PROJECT_ID` | `projectId` |
+
+4. Teste: aba **Actions → Publicar na Vercel → Run workflow**.
+
+Cada execução gasta ~3–5 min da cota grátis de Actions (2.000 min/mês em repositório privado).
 
 ---
 
 ## 6. Primeiro acesso em produção
 
 1. Abra o site → **Admin** → entre com `Admin__Email` / `Admin__Senha`.
-2. **Temporadas:** crie a temporada e ajuste **Pontuação** (bye com 2/3 de fora, timer padrão, desempate) **antes** de encerrar a primeira rodada — depois disso a configuração trava.
-3. **Jogadores** e **Decks** (o comandante é criado automaticamente na primeira vez em que é digitado).
-4. **Rodadas → Nova rodada** no dia da liga. Para os jogadores, compartilhe o link `/ao-vivo`.
+2. **Temporadas:** crie a temporada e ajuste **Pontuação** **antes** de encerrar a primeira rodada (depois ela trava).
+3. **Jogadores** e **Decks**, depois **Rodadas → Nova rodada** no dia da liga. Para os jogadores, compartilhe `/ao-vivo`.
+
+### Tirar os dados de exemplo depois da apresentação
+
+Os dados de exemplo só são criados quando o banco não tem nenhuma temporada. Para começar a liga de verdade do zero:
+
+1. Na Vercel, troque `Semente__DadosDemonstracao` para `false`.
+2. No Supabase → **SQL Editor**, rode (apaga **tudo**, inclusive o admin, que é recriado ao ligar a Api):
+
+   ```sql
+   drop schema public cascade;
+   create schema public;
+   grant all on schema public to postgres;
+   ```
+
+3. Na Vercel → **Deployments** → no último → **⋯ → Redeploy**. A Api recria as tabelas vazias e o admin.
 
 ---
 
-## Atualizações
+## Trocar senha do admin, variáveis etc.
 
-- `git push` na `main` → Render (só se mudar `src/`, `Dockerfile` ou a `.sln`) e Vercel fazem deploy automático.
-- Mudou entidade? Gere a migration localmente (ver [CLAUDE.md](../CLAUDE.md)), faça commit; ela é aplicada no próximo startup da API.
+- **Senha do admin:** altere `Admin__Senha` na Vercel e faça **Redeploy**. Trocar `Admin__Email` cria outro admin.
+- Toda mudança de variável na Vercel só vale depois de um **Redeploy**.
+- **Logs da Api:** Vercel → projeto → **Logs** (o que a Api escreve no console aparece lá).
 
 ## Problemas comuns
 
 | Sintoma | Causa provável |
 |---|---|
-| Front mostra "Não foi possível conectar ao servidor" | API dormindo (aguarde ~1 min) ou `VITE_API_URL` errada (refaça o deploy da Vercel após corrigir) |
-| Erro de CORS no console do navegador | `Cors__OrigensPermitidas` não contém exatamente a origem do site (sem barra final) |
-| API não sobe: "Jwt:Chave ausente" | variável `Jwt__Chave` removida — gere um valor com 32+ caracteres |
-| API não sobe: erro de conexão com o banco | `DATABASE_URL` errada ou sem `sslmode=require` |
+| `/saude` dá erro 502/504 | Api não subiu: veja **Logs**. Confira `PORT=8080`, `Jwt__Chave` (32+ caracteres) e a connection string |
+| Erro de conexão com o banco nos logs | connection string errada, senha errada ou projeto do Supabase **pausado** (clique em Restore) |
+| `Tenant or user not found` | o usuário precisa ser `postgres.<ref>` (com o ref do projeto) no Session pooler |
 | Login retorna 401 | e-mail/senha diferentes de `Admin__Email`/`Admin__Senha` (o e-mail é comparado em minúsculas) |
-| Rota como `/ao-vivo` dá 404 ao recarregar | Root Directory da Vercel não é `web` (o `vercel.json` não foi lido) |
+| Rota como `/ao-vivo` dá 404 ao recarregar | o `vercel.json` da raiz não foi lido: publique a partir da raiz do repositório |
+| Action falha em "Enviar para a Vercel" | segredos `VERCEL_*` ausentes ou token vencido |
+
+## Plano B: Api no Render
+
+O Container Runtime da Vercel ainda está em **Beta**. Se um dia ele sair do plano grátis ou der problema, a mesma imagem
+roda no Render: [`render.yaml`](../render.yaml) (New → Blueprint). Nesse caso o site continua na Vercel, mas aí precisa
+de `VITE_API_URL` = endereço do Render no build do site, `Cors__OrigensPermitidas` = endereço do site, e de tirar as
+rotas `api`/`saude`/`swagger` do `vercel.json`.

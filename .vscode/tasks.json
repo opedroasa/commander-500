@@ -1,0 +1,30 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "subir banco",
+      "type": "shell",
+      "command": "docker compose up -d --wait banco",
+      "problemMatcher": []
+    },
+    {
+      "label": "instalar site",
+      "type": "shell",
+      "command": "npm install --prefix web --no-audit --no-fund",
+      "problemMatcher": []
+    },
+    {
+      "label": "compilar api",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["build", "src/Commander500.Api"],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "preparar",
+      "dependsOrder": "sequence",
+      "dependsOn": ["subir banco", "instalar site", "compilar api"],
+      "problemMatcher": []
+    }
+  ]
+}

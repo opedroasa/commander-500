@@ -9,13 +9,41 @@
     <UserSecretsId>commander500-api</UserSecretsId>
   </PropertyGroup>
 
+  <!--
+    "Um play só": em desenvolvimento, ao iniciar a Api (F5 no Visual Studio ou dotnet run), o SpaProxy
+    roda "npm run dev" na pasta web/ e abre o navegador no site (http://localhost:5173).
+    Só liga com ASPNETCORE_HOSTINGSTARTUPASSEMBLIES=Microsoft.AspNetCore.SpaProxy (perfil "http" do launchSettings.json);
+    em produção (Docker/Vercel) não faz nada.
+  -->
+  <PropertyGroup>
+    <SpaRoot>..\..\web\</SpaRoot>
+    <SpaProxyLaunchCommand>npm run dev</SpaProxyLaunchCommand>
+    <SpaProxyServerUrl>http://localhost:5173</SpaProxyServerUrl>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Commander500.Infraestrutura\Commander500.Infraestrutura.csproj" />
+    <!-- No Visual Studio, compilar a Api compila antes o site (que roda o npm install quando precisa). -->
+    <ProjectReference Include="..\..\web\Commander500.Web.esproj" Condition="'$(BuildingInsideVisualStudio)' == 'true'">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.23" />
+    <PackageReference Include="Microsoft.AspNetCore.SpaProxy" Version="9.0.23" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="8.1.4" />
   </ItemGroup>
+
+  <!--
+    No Visual Studio, antes de compilar em Debug, sobe o banco local (Postgres no Docker).
+    Se o Docker Desktop estiver fechado, só mostra um aviso: abra o Docker e aperte F5 de novo.
+  -->
+  <Target Name="SubirBancoLocal" BeforeTargets="Build" Condition="'$(BuildingInsideVisualStudio)' == 'true' And '$(Configuration)' == 'Debug'">
+    <Exec Command="docker compose up -d --wait banco" WorkingDirectory="$(MSBuildProjectDirectory)\..\.." ContinueOnError="true" StandardOutputImportance="low">
+      <Output TaskParameter="ExitCode" PropertyName="CodigoSaidaDocker" />
+    </Exec>
+    <Warning Condition="'$(CodigoSaidaDocker)' != '0'" Text="Não consegui subir o banco local. Abra o Docker Desktop, espere aparecer 'Engine running' e rode de novo." />
+  </Target>
 
 </Project>

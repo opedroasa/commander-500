@@ -14,12 +14,10 @@ docker compose up -d --wait banco
 dotnet tool restore >/dev/null
 [ -d web/node_modules ] || { echo "==> Instalando dependências do site"; npm install --prefix web; }
 
-echo "==> Iniciando Api e site"
-dotnet run --project src/Commander500.Api &
+echo "==> Iniciando a Api (ela abre o site sozinha, via SpaProxy)"
+dotnet run --project src/Commander500.Api --launch-profile http &
 PID_API=$!
-npm run dev --prefix web &
-PID_SITE=$!
-trap 'kill $PID_API $PID_SITE 2>/dev/null' EXIT INT TERM
+trap 'kill $PID_API 2>/dev/null' EXIT INT TERM
 
 for _ in $(seq 1 90); do curl -sf http://localhost:5080/saude >/dev/null && break; sleep 1; done
 echo
