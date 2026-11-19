@@ -30,11 +30,11 @@ src/Commander500.Dominio/          não depende de nada
   Regras/                          regras puras e testáveis: FluxoRodada (máquina de estados, mesas à mão, quem começa),
                                    SorteadorMesas, CalculadoraRanking (soma das rodadas), CalculadoraRankingEtapa,
                                    CalculadoraRankingTemporada (escolhe o modo; colocação + final), CalculadoraEstatisticasComandante,
-                                   RegrasEtapa (etapas por data, mesa final), RegrasTemporada, GeradorAleatorio
+                                   RegrasEtapa (etapas por data, mesa final), RegrasTemporada, RegrasAdministrador, GeradorAleatorio
   Comum/                           Excecoes (RegraNegocio, DadosInvalidos, NaoEncontrado, ServicoIndisponivel), NomeComandante, FusoLoja
 src/Commander500.Aplicacao/        casos de uso (serviços de aplicação, sem MediatR)
   Servicos/                        ServicoTemporada, ServicoRodada, ServicoJogador, ServicoDeck, ServicoComandante,
-                                   ServicoEstatisticas, ServicoAutenticacao, ServicoRegulamento
+                                   ServicoEstatisticas, ServicoAutenticacao, ServicoAdministrador, ServicoRegulamento
   Modelos/                         Envios.cs (o que o site manda) e Respostas.cs (o que a Api devolve)
   Interfaces/                      IContextoBanco, IClienteScryfall, IServicoSenha, IGeradorToken (implementados na Infraestrutura)
   Comum/                           Mapeamento (entidade → resposta), ConsultasRodada (Includes)
@@ -53,7 +53,7 @@ web/                               React 19 + Vite + TS + Tailwind v4, mobile-fi
   src/paginas/publico/             PaginaInicial (banner da temporada + próxima etapa), PaginaTemporada (ranking/etapas/comandantes),
                                    PaginaComandantes, PaginasAoVivo (Ao vivo + Rodada), PaginaRegras
   src/paginas/admin/               PaginaLogin, PaginaEtapasRodadas, PaginaConducaoRodada, PaginaJogadores, PaginaDecks,
-                                   PaginaTemporadas (pontuação, próxima etapa, mesa final), PaginaEditarRegras
+                                   PaginaTemporadas (pontuação, próxima etapa, mesa final), PaginaEditarRegras, PaginaAdministradores
   src/utilitarios/                 formatacao, relogio, tema, comandantes
 docker-compose.yml                 Postgres local (serviço "banco") + perfil "api" opcional
 src/Dockerfile                     imagem da Api (contexto = pasta src/; usada pela Vercel, docker-compose e Render)
@@ -100,7 +100,7 @@ A porta 5080 também é usada pela Gestão Rastreio Wiki (outro projeto do Pedro
 |---|---|
 | `ConnectionStrings__Padrao` ou `DATABASE_URL` | aceita `Host=...` ou `postgres://usuario:senha@host/banco?sslmode=require` |
 | `Jwt__Chave` | obrigatório, ≥ 32 caracteres (a Api não sobe sem) |
-| `Admin__Email`, `Admin__Senha` | cria o admin ao iniciar se não existir; se existir e a senha mudou, atualiza |
+| `Admin__Email`, `Admin__Senha` | só no primeiro acesso: cria esse admin quando a tabela `Administradores` está vazia (depois, cadastro pela tela) |
 | `Cors__OrigensPermitidas` | lista separada por vírgula (`*` libera tudo) |
 | `Banco__MigrarAoIniciar` | padrão `true` |
 | `Semente__DadosDemonstracao` | `true` cria 1 temporada + 10 jogadores/decks + 3 rodadas encerradas se não houver temporadas |
@@ -179,5 +179,10 @@ A porta 5080 também é usada pela Gestão Rastreio Wiki (outro projeto do Pedro
 - **Publicação** (decisão de 19/11/2026): Vercel (site + Api no mesmo projeto, Api pelo *Container Runtime*, em Beta) +
   Supabase (Postgres, Session pooler, Data API desligada). Sem CORS/`VITE_API_URL` em produção. Deploy pelo GitHub
   Actions com token porque o repositório é privado de outra conta (o Hobby da Vercel não publica commits de terceiros).
+- **Administradores** (19/11/2026): cadastrados pela tela `/admin/administradores` (qualquer admin cria, troca senha e
+  exclui; ninguém exclui a si mesmo nem o último). A configuração só cria o primeiro. O `OnTokenValidated` do JWT confere
+  se o admin ainda existe, então quem é excluído perde o acesso na hora (1 consulta por requisição do admin).
+- **Supabase com RLS ligado** em todas as tabelas, sem políticas (a Api usa `postgres`, que tem BYPASSRLS) + gatilho
+  `ligar_rls_tabelas_novas` para as tabelas criadas por migrations. Produção: `fantasy500.vercel.app`.
 - Arquitetura limpa com **serviços de aplicação** (sem MediatR) e banco **PostgreSQL** com nomes de tabela = nome do DbSet
   (sem `TB_`). Decisão do Pedro em 18/11/2026; as migrations recomeçaram do zero (`Inicial`).

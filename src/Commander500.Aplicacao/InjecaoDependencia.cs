@@ -19,6 +19,7 @@ public static class InjecaoDependencia
         servicos.AddScoped<ServicoComandante>();
         servicos.AddScoped<ServicoEstatisticas>();
         servicos.AddScoped<ServicoAutenticacao>();
+        servicos.AddScoped<ServicoAdministrador>();
         servicos.AddScoped<ServicoRegulamento>();
         return servicos;
     }

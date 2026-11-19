@@ -41,6 +41,17 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
         RoleClaimType = ClaimTypes.Role,
         ClockSkew = TimeSpan.FromMinutes(1),
     };
+    // Administrador excluído pela tela perde o acesso na hora, mesmo com um token ainda dentro da validade.
+    o.Events = new JwtBearerEvents
+    {
+        OnTokenValidated = async contexto =>
+        {
+            var banco = contexto.HttpContext.RequestServices.GetRequiredService<ContextoBanco>();
+            var existe = int.TryParse(contexto.Principal?.FindFirstValue("sub"), out var id)
+                && await banco.Administradores.AnyAsync(a => a.Id == id);
+            if (!existe) contexto.Fail("Administrador não existe mais.");
+        },
+    };
 });
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy(EndpointsAdmin.PoliticaAdmin, p => p.RequireRole(GeradorTokenJwt.PapelAdmin));

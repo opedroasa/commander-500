@@ -12,8 +12,8 @@ namespace Commander500.Infraestrutura.Dados;
 
 /// <summary>
 /// Dados criados na inicialização da Api.
-/// - Administrador: vem da configuração (variáveis Admin__Email / Admin__Senha). É criado se não existir; se existir e a
-///   senha da configuração mudou, a senha é atualizada (a configuração manda).
+/// - Administrador: só no primeiro acesso (tabela vazia) cria o da configuração (variáveis Admin__Email / Admin__Senha).
+///   Depois, os administradores são cadastrados pela tela. Para recuperar o acesso: apagar todos e reiniciar a Api.
 /// - Regulamento: o texto do tratado, se ainda não houver (depois o lojista edita pela tela).
 /// - Demonstração (só com Semente:DadosDemonstracao=true e banco sem temporadas): 1 temporada, 10 jogadores com decks
 ///   e 3 rodadas encerradas em 2 etapas.
@@ -27,27 +27,22 @@ public static class SemeadorBanco
         var servicoSenha = servicos.GetRequiredService<IServicoSenha>();
         var agora = servicos.GetRequiredService<TimeProvider>().GetUtcNow().UtcDateTime;
 
+        // Primeiro acesso: só cria o admin da configuração quando ainda não há nenhum. Depois disso os administradores são
+        // cuidados pela tela /admin/administradores (a configuração não recria quem foi excluído nem volta senhas trocadas).
         var email = configuracao["Admin:Email"]?.Trim().ToLowerInvariant();
         var senha = configuracao["Admin:Senha"];
-        if (!string.IsNullOrEmpty(email) && !string.IsNullOrEmpty(senha))
+        if (!await banco.Administradores.AnyAsync())
         {
-            var administrador = await banco.Administradores.FirstOrDefaultAsync(a => a.Email == email);
-            if (administrador is null)
+            if (!string.IsNullOrEmpty(email) && !string.IsNullOrEmpty(senha))
             {
                 banco.Administradores.Add(new Administrador { Email = email, HashSenha = servicoSenha.GerarHash(senha) });
                 await banco.SaveChangesAsync();
-                log.LogInformation("Admin {Email} criado.", email);
+                log.LogInformation("Admin {Email} criado (primeiro acesso).", email);
             }
-            else if (servicoSenha.Verificar(administrador.HashSenha, senha) == VerificacaoSenha.Invalida)
+            else
             {
-                administrador.HashSenha = servicoSenha.GerarHash(senha);
-                await banco.SaveChangesAsync();
-                log.LogInformation("Senha do admin {Email} atualizada a partir da configuração.", email);
+                log.LogWarning("Nenhum admin cadastrado. Defina Admin__Email e Admin__Senha.");
             }
-        }
-        else if (!await banco.Administradores.AnyAsync())
-        {
-            log.LogWarning("Nenhum admin cadastrado. Defina Admin__Email e Admin__Senha.");
         }
 
         if (!await banco.Regulamentos.AnyAsync())

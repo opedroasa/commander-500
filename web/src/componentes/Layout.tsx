@@ -75,6 +75,7 @@ const linksAdmin = [
   { para: '/admin/decks', rotulo: 'Decks' },
   { para: '/admin/temporadas', rotulo: 'Temporadas' },
   { para: '/admin/regras', rotulo: 'Regras' },
+  { para: '/admin/administradores', rotulo: 'Administradores' },
 ]
 
 /** Menu da área do admin (dentro do LayoutPublico). */

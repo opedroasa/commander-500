@@ -8,6 +8,7 @@ import { Vazio } from './componentes/comum'
 import { LayoutAdmin, LayoutPublico } from './componentes/Layout'
 import { ExigirAdmin, Raiz } from './componentes/ProtecaoRotas'
 import './index.css'
+import { PaginaAdministradores } from './paginas/admin/PaginaAdministradores'
 import { PaginaConducaoRodada } from './paginas/admin/PaginaConducaoRodada'
 import { PaginaDecks } from './paginas/admin/PaginaDecks'
 import { PaginaEtapasRodadas } from './paginas/admin/PaginaEtapasRodadas'
@@ -56,6 +57,7 @@ const rotas = createBrowserRouter([
                   { path: '/admin/jogadores', element: <PaginaJogadores /> },
                   { path: '/admin/decks', element: <PaginaDecks /> },
                   { path: '/admin/temporadas', element: <PaginaTemporadas /> },
+                  { path: '/admin/administradores', element: <PaginaAdministradores /> },
                   // O editor visual (TipTap) é pesado: só baixa quando o admin abre a tela de regras.
                   { path: '/admin/regras', lazy: async () => ({ Component: (await import('./paginas/admin/PaginaEditarRegras')).PaginaEditarRegras }) },
                 ],

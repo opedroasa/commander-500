@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { requisitar } from './cliente'
 import type {
-  CartaScryfall, ConfiguracaoTemporada, Deck, DeckEnvio, DetalheEtapa, EstatisticaComandante, Etapa, FinalistaSugerido, Jogador,
+  Administrador, CartaScryfall, ConfiguracaoTemporada, Deck, DeckEnvio, DetalheEtapa, EstatisticaComandante, Etapa, FinalistaSugerido, Jogador,
   JogadorEnvio, LinhaRanking, PerfilJogador, Regulamento, ResultadoMesa, Rodada, SituacaoDeck, Temporada, TemporadaEnvio,
 } from './tipos'
 
@@ -22,6 +22,7 @@ export const chaves = {
   estatisticasComandantes: (idTemporada: number | null) => ['estatisticas-comandantes', idTemporada ?? 'todas'] as const,
   perfil: (id: number, idTemporada: number | null) => ['perfil', id, idTemporada ?? 'todas'] as const,
   regulamento: ['regulamento'] as const,
+  administradores: ['administradores'] as const,
   finalistas: (id: number, quantidade: number) => ['temporadas', id, 'finalistas', quantidade] as const,
 }
 
@@ -65,6 +66,8 @@ export const useRodadasAtuais = (intervaloMs = 15000) =>
 
 // ---------- Consultas do admin
 export const useJogadores = () => useQuery({ queryKey: chaves.jogadores, queryFn: () => requisitar<Jogador[]>('/api/jogadores') })
+export const useAdministradores = () =>
+  useQuery({ queryKey: chaves.administradores, queryFn: () => requisitar<Administrador[]>('/api/administradores') })
 export const useDecks = () => useQuery({ queryKey: chaves.decks, queryFn: () => requisitar<Deck[]>('/api/decks') })
 /** Busca de comandante no Scryfall (admin), a partir de 2 letras. */
 export const useBuscaScryfall = (texto: string) =>
@@ -95,6 +98,16 @@ function useAlteracao<TDados, TResultado = unknown>(funcao: (dados: TDados) => P
     },
   })
 }
+
+// Administradores
+export const useCriarAdministrador = () =>
+  useAlteracao((dados: { email: string; senha: string }) =>
+    requisitar<Administrador>('/api/administradores', { metodo: 'POST', corpo: dados }), [chaves.administradores])
+export const useAlterarSenhaAdministrador = () =>
+  useAlteracao(({ id, senha }: { id: number; senha: string }) =>
+    requisitar<void>(`/api/administradores/${id}/senha`, { metodo: 'PUT', corpo: { senha } }), [chaves.administradores])
+export const useExcluirAdministrador = () =>
+  useAlteracao((id: number) => requisitar<void>(`/api/administradores/${id}`, { metodo: 'DELETE' }), [chaves.administradores])
 
 // Jogadores
 export const useSalvarJogador = () =>

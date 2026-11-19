@@ -22,6 +22,7 @@ export function ProvedorAutenticacao({ children }: { children: ReactNode }) {
     definirSessao(null)
     cache.removeQueries({ queryKey: ['jogadores'] })
     cache.removeQueries({ queryKey: ['decks'] })
+    cache.removeQueries({ queryKey: ['administradores'] })
   }, [cache])
 
   const entrar = useCallback(async (email: string, senha: string) => {

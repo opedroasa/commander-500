@@ -83,10 +83,27 @@ public static class EndpointsAdmin
             .WithTags("Admin · Rodadas")
             .WithSummary("Troca quem começa jogando (vai para a cadeira 1; os outros giram junto).");
 
+        // ----- Administradores (usuários da área do lojista)
+        var administradores = api.MapGroup("/administradores").WithTags("Admin · Administradores");
+        administradores.MapGet("/", (ServicoAdministrador s, ClaimsPrincipal usuario) => s.Listar(IdUsuario(usuario)));
+        administradores.MapPost("/", async (AdministradorEnvio envio, ServicoAdministrador s, ClaimsPrincipal usuario) =>
+                Criado("administradores", await s.Criar(envio, IdUsuario(usuario)), a => a.Id))
+            .WithSummary("Cadastra um administrador novo (e-mail + senha com 8+ caracteres).");
+        administradores.MapPut("/{id:int}/senha", async (int id, NovaSenhaEnvio envio, ServicoAdministrador s) =>
+                { await s.AlterarSenha(id, envio); return Results.NoContent(); })
+            .WithSummary("Define uma senha nova (a própria ou de quem esqueceu).");
+        administradores.MapDelete("/{id:int}", async (int id, ServicoAdministrador s, ClaimsPrincipal usuario) =>
+                { await s.Excluir(id, IdUsuario(usuario)); return Results.NoContent(); })
+            .WithSummary("Exclui um administrador (não a si mesmo nem o último).");
+
         api.MapPut("/regulamento", (RegulamentoEnvio envio, ServicoRegulamento s, ClaimsPrincipal usuario) =>
                 s.Salvar(envio, usuario.FindFirstValue(JwtRegisteredClaimNames.Email) ?? usuario.FindFirstValue(ClaimTypes.Email)))
             .WithTags("Admin · Regulamento");
     }
+
+    /// <summary>Id do administrador logado (claim "sub" do token).</summary>
+    private static int? IdUsuario(ClaimsPrincipal usuario) =>
+        int.TryParse(usuario.FindFirstValue(JwtRegisteredClaimNames.Sub), out var id) ? id : null;
 
     /// <summary>201 Created com o endereço do registro novo.</summary>
     private static IResult Criado<T>(string recurso, T corpo, Func<T, int> obterId) =>
