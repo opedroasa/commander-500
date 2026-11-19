@@ -58,17 +58,20 @@ export function ListaComandantes({ linhas, ordem, limite, minimoPartidas }: {
             <ArteComandante comandantes={linha.comandantes} className="h-10 w-14 shrink-0" arredondamento="rounded-md" />
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-semibold text-zinc-100">{linha.nome}</div>
-              <div className="flex items-center gap-2 text-xs text-zinc-400">
+              {/* No celular a linha de números quebra em vez de ser cortada com "…"; da tela média para cima, uma linha só. */}
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-zinc-400 sm:flex-nowrap">
                 <CoresMana identidadeCor={identidadeCombinada(linha.comandantes)} />
-                <span className="truncate">
+                <span className="sm:truncate">
                   {plural(linha.partidas, 'partida', 'partidas')} · {plural(linha.vitorias, 'vitória', 'vitórias')} · {plural(linha.decks, 'deck', 'decks')}
                 </span>
               </div>
             </div>
-            <div className="text-right">
+            {/* shrink-0: o número da direita (%, partidas, decks) nunca é espremido nem empurrado para fora. */}
+            <div className="shrink-0 text-right">
               <div className="text-base font-bold tabular-nums text-amber-300">{valorPrincipal}</div>
+              {/* Texto extra (% de vitória) só da tela média para cima: no celular ele espremia o nome do comandante. */}
               {ordem !== 'percentual' && (
-                <div className="text-[0.7rem] text-zinc-500">
+                <div className="hidden text-[0.7rem] text-zinc-500 sm:block">
                   {linha.percentualVitoria === null ? (minimoPartidas ? `% após ${minimoPartidas} partidas` : '–') : `${formatarPercentual(linha.percentualVitoria)} de vitória`}
                 </div>
               )}
