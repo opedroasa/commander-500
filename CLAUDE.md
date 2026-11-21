@@ -61,6 +61,7 @@ scripts/dev.ps1, dev.sh            sobe banco + Api (que abre o site) com um com
 .vscode/                           F5 no VS Code (mesmo fluxo do Visual Studio)
 vercel.json, .vercelignore        publicação na Vercel: serviço "site" (web/, Vite) + serviço "api" (src/, container) no mesmo domínio
 .github/workflows/publicar.yml     merge na main → dotnet test + build do site → vercel deploy --prod
+.github/workflows/manter-supabase-acordado.yml   quarta 14h e sábado 12h (Brasília): GET /api/temporadas para o Supabase não pausar
 docs/DEPLOY.md, docs/MANUAL-PEDRO.md   passo a passo da publicação (Vercel + Supabase) e dos acessos
 render.yaml                        plano B (Api no Render), não usado
 ```
