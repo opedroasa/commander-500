@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Commander500.Aplicacao.Servicos;
 
 /// <summary>Temporadas: cadastro, pontuação, encerramento, ranking e histórico de rodadas.</summary>
-public class ServicoTemporada(IContextoBanco banco, TimeProvider relogio)
+public class ServicoTemporada(IContextoBanco banco, TimeProvider relogio, IArmazenamentoFotos fotos)
 {
     public async Task<IReadOnlyList<TemporadaResposta>> Listar()
     {
@@ -19,7 +19,7 @@ public class ServicoTemporada(IContextoBanco banco, TimeProvider relogio)
             .Select(t => new { Temporada = t, Rodadas = t.Rodadas.Count, Etapas = t.Etapas.Count(e => !e.Final),
                 IdFinal = t.Etapas.Where(e => e.Final).Select(e => (int?)e.Id).FirstOrDefault() })
             .ToListAsync();
-        return linhas.Select(l => l.Temporada.ParaResposta(l.Rodadas, l.Etapas, l.IdFinal)).ToList();
+        return linhas.Select(l => l.Temporada.ParaResposta(l.Rodadas, l.Etapas, l.IdFinal, fotos.Url(l.Temporada.CaminhoFoto))).ToList();
     }
 
     public async Task<TemporadaResposta> Obter(int id)
@@ -28,7 +28,7 @@ public class ServicoTemporada(IContextoBanco banco, TimeProvider relogio)
             .Select(t => new { Temporada = t, Rodadas = t.Rodadas.Count, Etapas = t.Etapas.Count(e => !e.Final),
                 IdFinal = t.Etapas.Where(e => e.Final).Select(e => (int?)e.Id).FirstOrDefault() }).FirstOrDefaultAsync()
             ?? throw new NaoEncontradoException($"Temporada {id} não encontrada.");
-        return linha.Temporada.ParaResposta(linha.Rodadas, linha.Etapas, linha.IdFinal);
+        return linha.Temporada.ParaResposta(linha.Rodadas, linha.Etapas, linha.IdFinal, fotos.Url(linha.Temporada.CaminhoFoto));
     }
 
     public async Task<TemporadaResposta> Criar(TemporadaEnvio envio)

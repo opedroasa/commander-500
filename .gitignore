@@ -6,6 +6,9 @@
 # dotenv files
 .env
 
+# Fotos enviadas em desenvolvimento (em produção ficam no Supabase Storage)
+fotos-local/
+
 # User-specific files
 *.rsuser
 *.suo

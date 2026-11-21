@@ -17,7 +17,7 @@ public record AdministradorResposta(int Id, string Email, bool UsuarioAtual);
 public record TemporadaResposta(
     int Id, string Nome, DateOnly DataInicio, DateOnly? DataFim, bool Ativa, bool ConfiguracaoTravada,
     ConfiguracaoTemporada Configuracao, int QuantidadeRodadas, int QuantidadeEtapas,
-    DateTime? ProximaEtapaEm, DateOnly? PrazoListas, int? IdEtapaFinal);
+    DateTime? ProximaEtapaEm, DateOnly? PrazoListas, int? IdEtapaFinal, string? UrlFoto, string? LegendaFoto);
 
 // ----- Jogadores, decks e comandantes
 public record JogadorResposta(int Id, string Nome, string? Apelido, bool Ativo, DateTime DataCadastro, int QuantidadeDecks);
@@ -61,7 +61,7 @@ public record ReferenciaJogadorResposta(int Id, string Nome);
 public record EtapaResposta(
     int Id, int IdTemporada, string NomeTemporada, int Numero, DateOnly Data,
     int QuantidadeRodadas, int RodadasEncerradas, bool Concluida, IReadOnlyList<ReferenciaJogadorResposta> Lideres,
-    bool Final, int? RodadasPrevistas);
+    bool Final, int? RodadasPrevistas, string? UrlFoto, string? LegendaFoto);
 
 /// <summary>Linha do ranking da etapa + pontos que a colocação vale na temporada (só no modo por colocação).</summary>
 public record LinhaEtapaResposta(LinhaRankingEtapa Linha, int? PontosTemporada);
@@ -99,4 +99,22 @@ public record RodadaResposta(
     SituacaoRodada Situacao, string DescricaoSituacao, int DuracaoMinutos, int TurnosExtrasAposTempo,
     DateTime AgoraServidor, CronometroResposta? Cronometro, DateTime? EncerradaEm,
     IReadOnlyList<ParticipacaoResposta> Participacoes, IReadOnlyList<ParticipacaoResposta> Byes, IReadOnlyList<MesaResposta> Mesas,
-    bool EtapaFinal, int? RodadasPrevistasEtapa, bool Retroativa);
+    bool EtapaFinal, int? RodadasPrevistasEtapa, bool Retroativa, bool TemporadaAtiva);
+
+/// <summary>Foto do top (etapa ou temporada) depois de enviada.</summary>
+public record FotoResposta(string? UrlFoto, string? LegendaFoto);
+
+// ----- Configurações da loja
+/// <param name="LinkGrupoWhatsapp">Convite do grupo do Commander 500 (nulo = botão escondido).</param>
+public record ConfiguracaoLojaResposta(string? LinkGrupoWhatsapp);
+
+// ----- Hall da Fama
+public record DeckHallDaFamaResposta(int Id, string Nome, IReadOnlyList<ComandanteResposta> Comandantes);
+
+/// <param name="Deck">Deck que o jogador mais usou na temporada.</param>
+public record LinhaHallDaFamaResposta(int Posicao, int IdJogador, string NomeJogador, int Pontos, bool Empatado, DeckHallDaFamaResposta? Deck);
+
+/// <param name="Ranking">Ranking final completo (o site destaca o top 3).</param>
+public record TemporadaHallDaFamaResposta(
+    int Id, string Nome, DateOnly DataInicio, DateOnly? DataFim, ModoPontuacao ModoPontuacao,
+    string? UrlFoto, string? LegendaFoto, IReadOnlyList<LinhaHallDaFamaResposta> Ranking);

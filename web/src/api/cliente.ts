@@ -56,7 +56,9 @@ const ROTA_LOGIN = '/api/autenticacao/login'
 
 export async function requisitar<T>(caminho: string, opcoes: { metodo?: string; corpo?: unknown } = {}): Promise<T> {
   const cabecalhos: Record<string, string> = { Accept: 'application/json' }
-  if (opcoes.corpo !== undefined) cabecalhos['Content-Type'] = 'application/json'
+  // FormData (envio de foto): o navegador monta o Content-Type com o "boundary" sozinho.
+  const ehFormulario = opcoes.corpo instanceof FormData
+  if (opcoes.corpo !== undefined && !ehFormulario) cabecalhos['Content-Type'] = 'application/json'
   if (tokenAtual) cabecalhos.Authorization = `Bearer ${tokenAtual}`
 
   let resposta: Response
@@ -64,7 +66,7 @@ export async function requisitar<T>(caminho: string, opcoes: { metodo?: string; 
     resposta = await fetch(`${ENDERECO_BASE}${caminho}`, {
       method: opcoes.metodo ?? 'GET',
       headers: cabecalhos,
-      body: opcoes.corpo === undefined ? undefined : JSON.stringify(opcoes.corpo),
+      body: opcoes.corpo === undefined ? undefined : ehFormulario ? (opcoes.corpo as FormData) : JSON.stringify(opcoes.corpo),
     })
   } catch {
     throw new ErroApi(0, 'Não foi possível conectar ao servidor. Ele pode estar acordando — tente de novo em alguns segundos.')

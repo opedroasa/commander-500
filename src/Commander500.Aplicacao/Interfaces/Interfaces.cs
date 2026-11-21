@@ -20,6 +20,7 @@ public interface IContextoBanco
     DbSet<Cadeira> Cadeiras { get; }
     DbSet<Administrador> Administradores { get; }
     DbSet<Regulamento> Regulamentos { get; }
+    DbSet<ConfiguracaoLoja> ConfiguracoesLoja { get; }
 
     /// <summary>Grava no banco tudo o que foi alterado (uma transação).</summary>
     Task<int> SalvarAsync(CancellationToken cancelamento = default);
@@ -42,6 +43,20 @@ public interface IClienteScryfall
     Task<IReadOnlyList<CartaScryfall>> PesquisarComandantes(string busca, CancellationToken cancelamento = default);
     Task<CartaScryfall?> ObterPorId(Guid id, CancellationToken cancelamento = default);
     Task<CartaScryfall?> ObterPorNomeExato(string nome, CancellationToken cancelamento = default);
+}
+
+/// <summary>
+/// Onde ficam as fotos (top da etapa e da temporada). Em produção é o Supabase Storage; em desenvolvimento, uma pasta
+/// local servida pela própria Api. Implementado na Infraestrutura.
+/// </summary>
+public interface IArmazenamentoFotos
+{
+    /// <summary>Grava a foto no <paramref name="caminho"/> (ex.: "etapas/12-20261121143005.jpg").</summary>
+    Task Salvar(string caminho, Stream conteudo, string tipoConteudo, CancellationToken cancelamento = default);
+    /// <summary>Apaga a foto. Não falha se ela já não existir.</summary>
+    Task Excluir(string caminho, CancellationToken cancelamento = default);
+    /// <summary>Endereço público para o site mostrar a foto (nulo quando não há foto).</summary>
+    string? Url(string? caminho);
 }
 
 public enum VerificacaoSenha { Invalida, Valida, ValidaPrecisaAtualizarHash }

@@ -1,9 +1,10 @@
-import { ChevronDown, Crown, Handshake, Medal } from 'lucide-react'
+import { Camera, ChevronDown, Crown, Handshake, Medal } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router'
 import { useEstatisticasComandantes, useEtapa, useEtapasTemporada, useRanking, useTemporada } from '../../api/consultas'
 import type { Etapa, ModoPontuacao, Rodada, Temporada } from '../../api/tipos'
 import { Abas, CabecalhoPagina, CaixaErro, Carregando, LegendaSiglas, SeloSituacaoRodada, Vazio } from '../../componentes/comum'
+import { FotoDestaque } from '../../componentes/Fotos'
 import { JanelaPerfilJogador } from '../../componentes/JanelaPerfilJogador'
 import { CartoesArteComandante, ListaComandantes } from '../../componentes/RankingComandantes'
 import { rotuloOrdemComandantes, type OrdemComandantes } from '../../utilitarios/comandantes'
@@ -35,6 +36,8 @@ export function PaginaTemporada() {
           </>
         }
       />
+      {/* Foto de destaque da temporada (ex.: top 3 no fim da temporada) */}
+      {t.urlFoto && <FotoDestaque url={t.urlFoto} legenda={t.legendaFoto} className="mb-5" />}
       <Abas
         valor={aba}
         aoMudar={(nova) => definirParametros({ aba: nova }, { replace: true })}
@@ -208,12 +211,14 @@ function CartaoEtapa({ etapa, modo, abertaInicialmente, aoAbrirJogador }: {
               {etapa.concluida ? '' : 'Líder: '}{etapa.lideres.map((l) => l.nome).join(', ')}
             </span>
           )}
+          {etapa.urlFoto && <Camera className="size-4 text-zinc-400" aria-label="Tem foto do top" />}
           {!etapa.concluida && <span className="rounded-full bg-emerald-950 px-2 py-0.5 text-xs text-emerald-300">em andamento</span>}
           <ChevronDown className={`size-4 text-zinc-500 transition ${aberta ? 'rotate-180' : ''}`} aria-hidden />
         </span>
       </button>
       {aberta && (
         <div className="space-y-4 border-t border-zinc-800 p-4">
+          {etapa.urlFoto && <FotoDestaque url={etapa.urlFoto} legenda={etapa.legendaFoto} />}
           {detalhe.isPending && <Carregando />}
           {detalhe.error && <CaixaErro erro={detalhe.error} />}
           {detalhe.data && (
@@ -295,13 +300,14 @@ function ResumoRodada({ rodada, aoAbrirJogador }: { rodada: Rodada; aoAbrirJogad
                 {mesa.cadeiras.map((cadeira) => {
                   const venceu = mesa.resultado === 'Vitoria' && mesa.idParticipacaoVencedora === cadeira.participacao.id
                   return (
-                    <li key={cadeira.numero} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm ${venceu ? 'bg-amber-500/15' : 'bg-zinc-900'}`}>
-                      <span className="w-4 text-xs text-zinc-500">{cadeira.numero}</span>
-                      <span className="min-w-0 flex-1 truncate">
-                        <button type="button" onClick={() => aoAbrirJogador(cadeira.participacao.idJogador)} className="font-medium hover:text-amber-300 hover:underline">
+                    // Nome do jogador em cima e comandante embaixo, quebrando linha: nome de comandante longo não estoura no celular.
+                    <li key={cadeira.numero} className={`flex min-w-0 items-start gap-2 rounded-lg px-2 py-1.5 text-sm ${venceu ? 'bg-amber-500/15' : 'bg-zinc-900'}`}>
+                      <span className="w-4 shrink-0 pt-0.5 text-xs text-zinc-500">{cadeira.numero}</span>
+                      <span className="min-w-0 flex-1">
+                        <button type="button" onClick={() => aoAbrirJogador(cadeira.participacao.idJogador)} className="text-left font-medium break-words hover:text-amber-300 hover:underline">
                           {cadeira.participacao.nomeJogador}
                         </button>
-                        <span className="text-zinc-500"> · {cadeira.participacao.comandantes}</span>
+                        <span className="block text-xs leading-snug text-zinc-500 break-words">{cadeira.participacao.comandantes}</span>
                       </span>
                       {venceu && <Crown className="size-4 shrink-0 text-amber-400" aria-label="Vencedor" />}
                     </li>

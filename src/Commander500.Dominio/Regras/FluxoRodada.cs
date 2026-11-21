@@ -198,6 +198,7 @@ public static class FluxoRodada
     public static void RegistrarResultado(Rodada rodada, Mesa mesa, ResultadoMesa resultado, int? idParticipacaoVencedora,
         DateTime agoraUtc, string? alteradaPor, DateOnly? hoje = null)
     {
+        if (rodada.Situacao == SituacaoRodada.Encerrada) GarantirTemporadaAberta(rodada, "corrigir o resultado");
         if (EhRetroativa(rodada, hoje))
             GarantirSituacao(rodada, "registrar resultado", SituacaoRodada.Sorteada, SituacaoRodada.EmAndamento, SituacaoRodada.Encerrada);
         else
@@ -240,6 +241,29 @@ public static class FluxoRodada
         rodada.Situacao = SituacaoRodada.Encerrada;
         rodada.EncerradaEm = agoraUtc;
         if (rodada.Temporada is not null) rodada.Temporada.ConfiguracaoTravada = true;
+    }
+
+    /// <summary>
+    /// Troca o deck que o jogador usou na rodada (ex.: o lojista lançou o deck errado). Vale com a rodada sorteada,
+    /// em andamento ou já encerrada — neste caso só enquanto a temporada estiver aberta. O deck precisa ser do jogador.
+    /// </summary>
+    public static void TrocarDeck(Rodada rodada, Participacao participacao, Deck deck)
+    {
+        GarantirSituacao(rodada, "trocar o deck", SituacaoRodada.Sorteada, SituacaoRodada.EmAndamento, SituacaoRodada.Encerrada);
+        if (rodada.Situacao == SituacaoRodada.Encerrada) GarantirTemporadaAberta(rodada, "trocar o deck");
+        if (!rodada.Participacoes.Contains(participacao))
+            throw new RegraNegocioException("O jogador não está nesta rodada.");
+        if (deck.IdJogador != participacao.IdJogador)
+            throw new DadosInvalidosException($"O deck '{deck.Nome}' não é deste jogador.");
+        participacao.IdDeck = deck.Id;
+        participacao.Deck = deck;
+    }
+
+    /// <summary>Rodadas de temporada encerrada ficam congeladas (o ranking final e o Hall da Fama não mudam mais).</summary>
+    private static void GarantirTemporadaAberta(Rodada rodada, string acao)
+    {
+        if (rodada.Temporada is { Ativa: false })
+            throw new RegraNegocioException($"Não é possível {acao}: a temporada já foi encerrada.");
     }
 
     /// <summary>Só dá para excluir antes de iniciar o timer.</summary>
