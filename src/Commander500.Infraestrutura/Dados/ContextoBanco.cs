@@ -23,6 +23,7 @@ public class ContextoBanco(DbContextOptions<ContextoBanco> opcoes) : DbContext(o
     public DbSet<Cadeira> Cadeiras => Set<Cadeira>();
     public DbSet<Administrador> Administradores => Set<Administrador>();
     public DbSet<Regulamento> Regulamentos => Set<Regulamento>();
+    public DbSet<ConfiguracaoLoja> ConfiguracoesLoja => Set<ConfiguracaoLoja>();
 
     public Task<int> SalvarAsync(CancellationToken cancelamento = default) => SaveChangesAsync(cancelamento);
 

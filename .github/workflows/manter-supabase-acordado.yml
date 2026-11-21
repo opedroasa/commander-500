@@ -1,0 +1,42 @@
+# Mantém o banco do Supabase acordado: no plano grátis, o projeto é pausado depois de 7 dias sem uso
+# e só volta reativando à mão no painel. Esta rotina faz uma consulta real ao banco 2x por semana.
+#
+# Horários (o GitHub usa UTC; Brasília = UTC-3):
+#   quarta 14h (Brasília) = quarta 17h UTC
+#   sábado 12h (Brasília) = sábado 15h UTC
+# O GitHub pode atrasar rotinas agendadas em alguns minutos; não faz diferença aqui.
+#
+# Importante: rotinas agendadas só rodam a partir da branch padrão (main). Também dá para rodar na mão:
+# aba Actions → "Manter Supabase acordado" → Run workflow.
+name: Manter Supabase acordado
+
+on:
+  schedule:
+    - cron: '0 17 * * 3'   # quarta 14h em Brasília
+    - cron: '0 15 * * 6'   # sábado 12h em Brasília
+  workflow_dispatch:
+
+jobs:
+  consultar:
+    name: Consultar o banco
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      # /api/temporadas lê o banco (o /saude não lê, então não serviria para acordar o Supabase).
+      ENDERECO: https://fantasy500.vercel.app/api/temporadas
+    steps:
+      - name: Chamar a Api
+        # Tenta até 5 vezes (a Api pode demorar para acordar na Vercel). Falha a rotina se nenhuma der certo,
+        # e aí o GitHub manda e-mail avisando.
+        run: |
+          for tentativa in 1 2 3 4 5; do
+            codigo=$(curl -s -o resposta.json -w '%{http_code}' --max-time 60 "$ENDERECO" || true)
+            echo "Tentativa $tentativa: HTTP $codigo"
+            if [ "$codigo" = "200" ]; then
+              echo "Banco respondeu. Temporadas encontradas: $(grep -o '"id":' resposta.json | wc -l)"
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "A Api não respondeu com 200. Confira o painel do Supabase e da Vercel."
+          exit 1

@@ -19,6 +19,8 @@ import { PaginaComandantes } from './paginas/publico/PaginaComandantes'
 import { PaginaInicial } from './paginas/publico/PaginaInicial'
 import { PaginaAoVivo, PaginaRodada } from './paginas/publico/PaginasAoVivo'
 import { PaginaRegras } from './paginas/publico/PaginaRegras'
+import { PaginaHallDaFama } from './paginas/publico/PaginaHallDaFama'
+import { PaginaConfiguracoes } from './paginas/admin/PaginaConfiguracoes'
 import { PaginaTemporada } from './paginas/publico/PaginaTemporada'
 
 const cacheConsultas = new QueryClient({
@@ -45,6 +47,7 @@ const rotas = createBrowserRouter([
           { path: '/ao-vivo', element: <PaginaAoVivo /> },
           { path: '/rodadas/:id', element: <PaginaRodada /> },
           { path: '/regras', element: <PaginaRegras /> },
+          { path: '/hall-da-fama', element: <PaginaHallDaFama /> },
           { path: '/admin/login', element: <PaginaLogin /> },
           {
             element: <ExigirAdmin />,
@@ -59,6 +62,7 @@ const rotas = createBrowserRouter([
                   { path: '/admin/temporadas', element: <PaginaTemporadas /> },
                   { path: '/admin/administradores', element: <PaginaAdministradores /> },
                   // O editor visual (TipTap) é pesado: só baixa quando o admin abre a tela de regras.
+                  { path: '/admin/configuracoes', element: <PaginaConfiguracoes /> },
                   { path: '/admin/regras', lazy: async () => ({ Component: (await import('./paginas/admin/PaginaEditarRegras')).PaginaEditarRegras }) },
                 ],
               },

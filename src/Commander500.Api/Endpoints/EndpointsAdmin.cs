@@ -4,6 +4,7 @@ using Commander500.Aplicacao.Modelos;
 using Commander500.Aplicacao.Servicos;
 using Commander500.Dominio.Enumeradores;
 using Commander500.Dominio.Regras;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Commander500.Api.Endpoints;
 
@@ -97,9 +98,37 @@ public static class EndpointsAdmin
             .WithSummary("Exclui um administrador (não a si mesmo nem o último).");
 
         api.MapPut("/regulamento", (RegulamentoEnvio envio, ServicoRegulamento s, ClaimsPrincipal usuario) =>
-                s.Salvar(envio, usuario.FindFirstValue(JwtRegisteredClaimNames.Email) ?? usuario.FindFirstValue(ClaimTypes.Email)))
+                s.Salvar(envio, EmailUsuario(usuario)))
             .WithTags("Admin · Regulamento");
+
+        // ----- Configurações da loja (link do grupo de WhatsApp)
+        api.MapPut("/configuracoes-loja", (ConfiguracaoLojaEnvio envio, ServicoConfiguracaoLoja s, ClaimsPrincipal usuario) =>
+                s.Salvar(envio, EmailUsuario(usuario)))
+            .WithTags("Admin · Configurações")
+            .WithSummary("Link do grupo de WhatsApp (vazio esconde o botão).");
+
+        // ----- Corrigir o deck de um jogador numa rodada (também encerrada, se a temporada estiver aberta)
+        api.MapPut("/participacoes/{id:int}/deck", (int id, TrocaDeckEnvio envio, ServicoRodada s) => s.TrocarDeck(id, envio))
+            .WithTags("Admin · Rodadas");
+
+        // ----- Fotos do top (formulário com "arquivo" e "legenda"; sem arquivo, só troca a legenda)
+        var fotos = api.MapGroup("").WithTags("Admin · Fotos").DisableAntiforgery();
+        fotos.MapPost("/etapas/{id:int}/foto", async (int id, IFormFile? arquivo, [FromForm] string? legenda, ServicoFotos s) =>
+            await s.SalvarFotoEtapa(id, ParaArquivo(arquivo), legenda))
+            .WithSummary("Foto do top da etapa.");
+        fotos.MapDelete("/etapas/{id:int}/foto", async (int id, ServicoFotos s) => { await s.RemoverFotoEtapa(id); return Results.NoContent(); });
+        fotos.MapPost("/temporadas/{id:int}/foto", async (int id, IFormFile? arquivo, [FromForm] string? legenda, ServicoFotos s) =>
+            await s.SalvarFotoTemporada(id, ParaArquivo(arquivo), legenda))
+            .WithSummary("Foto de destaque da temporada (aparece na temporada e no Hall da Fama).");
+        fotos.MapDelete("/temporadas/{id:int}/foto", async (int id, ServicoFotos s) => { await s.RemoverFotoTemporada(id); return Results.NoContent(); });
     }
+
+    private static ArquivoFoto? ParaArquivo(IFormFile? arquivo) =>
+        arquivo is null || arquivo.Length == 0 ? null : new ArquivoFoto(arquivo.OpenReadStream(), arquivo.ContentType, arquivo.Length);
+
+    /// <summary>E-mail do administrador logado (para auditoria).</summary>
+    private static string? EmailUsuario(ClaimsPrincipal usuario) =>
+        usuario.FindFirstValue(JwtRegisteredClaimNames.Email) ?? usuario.FindFirstValue(ClaimTypes.Email);
 
     /// <summary>Id do administrador logado (claim "sub" do token).</summary>
     private static int? IdUsuario(ClaimsPrincipal usuario) =>

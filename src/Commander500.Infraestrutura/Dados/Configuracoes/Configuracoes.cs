@@ -14,6 +14,8 @@ public class TemporadaConfiguracao : IEntityTypeConfiguration<Temporada>
         tabela.Property(t => t.Nome).HasMaxLength(120).IsRequired();
         tabela.Property(t => t.CriteriosDesempate).HasMaxLength(200).IsRequired();
         tabela.Property(t => t.PontosPorColocacao).HasMaxLength(100).IsRequired();
+        tabela.Property(t => t.CaminhoFoto).HasMaxLength(300);
+        tabela.Property(t => t.LegendaFoto).HasMaxLength(200);
     }
 }
 
@@ -67,7 +69,9 @@ public class EtapaConfiguracao : IEntityTypeConfiguration<Etapa>
     public void Configure(EntityTypeBuilder<Etapa> tabela)
     {
         tabela.HasOne(e => e.Temporada).WithMany(t => t.Etapas).HasForeignKey(e => e.IdTemporada).OnDelete(DeleteBehavior.Cascade);
-        tabela.HasIndex(e => new { e.IdTemporada, e.Data, e.Final }).IsUnique(); // a final pode cair no mesmo dia da última etapa
+        tabela.HasIndex(e => new { e.IdTemporada, e.Data, e.Final }).IsUnique();
+        tabela.Property(e => e.CaminhoFoto).HasMaxLength(300);
+        tabela.Property(e => e.LegendaFoto).HasMaxLength(200); // a final pode cair no mesmo dia da última etapa
         tabela.HasIndex(e => new { e.IdTemporada, e.Numero }); // não é único: ao renumerar pela data as linhas mudam uma a uma
     }
 }
@@ -131,5 +135,14 @@ public class RegulamentoConfiguracao : IEntityTypeConfiguration<Regulamento>
     {
         tabela.Property(r => r.Conteudo).IsRequired(); // HTML do editor (text no PostgreSQL)
         tabela.Property(r => r.AlteradoPor).HasMaxLength(200);
+    }
+}
+
+public class ConfiguracaoLojaConfiguracao : IEntityTypeConfiguration<ConfiguracaoLoja>
+{
+    public void Configure(EntityTypeBuilder<ConfiguracaoLoja> tabela)
+    {
+        tabela.Property(c => c.LinkGrupoWhatsapp).HasMaxLength(300);
+        tabela.Property(c => c.AlteradaPor).HasMaxLength(200);
     }
 }

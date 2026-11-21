@@ -183,6 +183,19 @@ public class ServicoRodada(IContextoBanco banco, TimeProvider relogio, IGeradorA
         return await Recarregar(idRodada);
     }
 
+    /// <summary>Corrige o deck de um jogador na rodada (também depois de encerrada, se a temporada estiver aberta).</summary>
+    public async Task<RodadaResposta> TrocarDeck(int idParticipacao, TrocaDeckEnvio envio)
+    {
+        var idRodada = await banco.Participacoes.Where(p => p.Id == idParticipacao).Select(p => (int?)p.IdRodada).FirstOrDefaultAsync()
+            ?? throw new NaoEncontradoException($"Participação {idParticipacao} não encontrada.");
+        var rodada = await Carregar(idRodada);
+        var deck = await banco.Decks.FirstOrDefaultAsync(d => d.Id == envio.IdDeck)
+            ?? throw new NaoEncontradoException($"Deck {envio.IdDeck} não encontrado.");
+        FluxoRodada.TrocarDeck(rodada, rodada.Participacoes.Single(p => p.Id == idParticipacao), deck);
+        await banco.SalvarAsync();
+        return await Recarregar(idRodada);
+    }
+
     public async Task<RodadaResposta> Iniciar(int id, int? duracaoMinutos)
     {
         var rodada = await Carregar(id);

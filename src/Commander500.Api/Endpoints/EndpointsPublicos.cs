@@ -1,5 +1,7 @@
 using System.Security.Claims;
 using Commander500.Aplicacao.Servicos;
+using Commander500.Aplicacao.Interfaces;
+using Commander500.Infraestrutura.Fotos;
 using Commander500.Infraestrutura.Seguranca;
 
 namespace Commander500.Api.Endpoints;
@@ -24,6 +26,30 @@ public static class EndpointsPublicos
         app.MapGet("/api/regulamento", (ServicoRegulamento s) => s.Obter())
             .WithTags("Público · Regulamento").AllowAnonymous()
             .WithSummary("Regulamento da liga (HTML do editor).");
+
+        app.MapGet("/api/configuracoes-loja", (ServicoConfiguracaoLoja s) => s.Obter())
+            .WithTags("Público · Loja").AllowAnonymous()
+            .WithSummary("Link do grupo de WhatsApp do Commander 500.");
+
+        app.MapGet("/api/hall-da-fama", (ServicoHallDaFama s) => s.Listar())
+            .WithTags("Público · Hall da Fama").AllowAnonymous()
+            .WithSummary("Ranking final das temporadas encerradas, com o deck mais usado de cada jogador e a foto do top.");
+
+        // Fotos guardadas na pasta local (desenvolvimento). Com o Supabase configurado, as fotos vêm direto de lá.
+        app.MapGet("/api/fotos/{**caminho}", (string caminho, IArmazenamentoFotos armazenamento) =>
+            {
+                if (armazenamento is not ArmazenamentoFotosLocal local) return Results.NotFound();
+                var arquivo = local.CaminhoNoDisco(caminho);
+                if (!File.Exists(arquivo)) return Results.NotFound();
+                var tipo = Path.GetExtension(arquivo).ToLowerInvariant() switch
+                {
+                    ".png" => "image/png",
+                    ".webp" => "image/webp",
+                    _ => "image/jpeg",
+                };
+                return Results.File(arquivo, tipo);
+            })
+            .ExcludeFromDescription().AllowAnonymous();
 
         app.MapGet("/api/etapas/{id:int}", (int id, ServicoEstatisticas s) => s.Etapa(id))
             .WithTags("Público · Etapas").AllowAnonymous()

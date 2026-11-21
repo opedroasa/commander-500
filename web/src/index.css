@@ -1,4 +1,4 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 
 /*
  * Identidade visual Fantasy Store: azul-marinho, laranja e vermelho da logo.
@@ -137,7 +137,7 @@ html[data-tema="claro"] {
 @utility botao-perigo { @apply botao border border-red-900 bg-red-950/60 text-red-200 hover:bg-red-900/60; }
 @utility botao-discreto { @apply botao text-zinc-300 hover:bg-zinc-800; }
 @utility botao-pequeno { @apply min-h-8 px-3 py-1 text-xs; }
-@utility cartao { @apply rounded-2xl border border-zinc-800 bg-zinc-900/60; }
+@utility cartao { @apply rounded-2xl border border-zinc-800 bg-zinc-900/90; }
 @utility rotulo { @apply mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-400; }
 
 /* Texto do regulamento (HTML do editor visual): mesmo visual na página pública e dentro do editor. */
@@ -159,3 +159,51 @@ html[data-tema="claro"] {
   .texto-regulamento .selectedCell { @apply bg-amber-500/15; }
   .texto-regulamento.ProseMirror { @apply min-h-80 outline-none; }
 }
+
+/* Fundo animado (componente FundoAnimado): brasas subindo e símbolos de mana flutuando. */
+@layer components {
+  .fundo-brasa {
+    bottom: -10px;
+    background: #ffb27a;
+    box-shadow: 0 0 6px 2px rgba(242, 101, 34, .55);
+    opacity: 0;
+    animation-name: subir-brasa;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+  .fundo-simbolo {
+    opacity: .16;
+    filter: drop-shadow(0 0 10px rgba(242, 101, 34, .35));
+    animation-name: flutuar-simbolo;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+    animation-direction: alternate;
+  }
+  html[data-tema="claro"] .fundo-brasa { background: #f26522; box-shadow: 0 0 5px 1px rgba(242, 101, 34, .35); }
+  /* No fundo claro os símbolos somem com pouca opacidade: ficam mais fortes e com uma sombra leve para destacar o contorno. */
+  html[data-tema="claro"] .fundo-simbolo { opacity: .32; filter: saturate(1.2) drop-shadow(0 1px 3px rgba(10, 17, 40, .25)); }
+  @media (prefers-reduced-motion: reduce) {
+    .fundo-brasa { display: none; }
+    .fundo-simbolo { animation: none; }
+  }
+}
+
+@keyframes subir-brasa {
+  0% { transform: translate(0, 0); opacity: 0; }
+  10% { opacity: .9; }
+  50% { transform: translate(18px, -50vh); }
+  85% { opacity: .5; }
+  100% { transform: translate(-12px, -105vh); opacity: 0; }
+}
+
+@keyframes flutuar-simbolo {
+  0% { transform: translate(0, 0) rotate(-8deg); }
+  100% { transform: translate(14px, -26px) rotate(10deg); }
+}
+
+/* Menu lateral do celular entrando pela direita. */
+@layer components {
+  .menu-lateral { animation: entrar-menu .2s ease-out; }
+  @media (prefers-reduced-motion: reduce) { .menu-lateral { animation: none; } }
+}
+@keyframes entrar-menu { from { transform: translateX(100%); } to { transform: translateX(0); } }

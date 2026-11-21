@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import {
   useCriarRodada, useDecks, useDefinirParticipantes, useEncerrarRodada, useExcluirRodada, useIniciarRodada, useJogadores,
-  useRegistrarResultadoMesa, useRodada, useRodadasTemporada, useSortearRodada,
+  useRegistrarResultadoMesa, useRodada, useRodadasTemporada, useSortearRodada, useTrocarDeck,
 } from '../../api/consultas'
 import type { Deck, Mesa, Rodada } from '../../api/tipos'
 import { CaixaErro, Carregando, ErroEmLinha, SeloSituacaoDeck, SeloSituacaoRodada, Vazio } from '../../componentes/comum'
@@ -420,13 +420,16 @@ function CartaoResultadoMesa({ rodada, mesa }: { rodada: Rodada; mesa: Mesa }) {
                 ? <>Vitória: <b>{mesa.cadeiras.find((c) => c.participacao.id === mesa.idParticipacaoVencedora)?.participacao.nomeJogador}</b></>
                 : 'Sem resultado'}
             </span>
-            <button className="botao-discreto botao-pequeno" onClick={() => definirEditando(true)}>
-              <Pencil className="size-3.5" aria-hidden /> {encerrada ? 'Corrigir' : 'Alterar'}
-            </button>
+            {(!encerrada || rodada.temporadaAtiva) && (
+              <button className="botao-discreto botao-pequeno" onClick={() => definirEditando(true)}>
+                <Pencil className="size-3.5" aria-hidden /> {encerrada ? 'Corrigir' : 'Alterar'}
+              </button>
+            )}
           </>
         )}
       </div>
       {!encerrada && <SeletorQuemComeca mesa={mesa} />}
+      {rodada.temporadaAtiva && <CorrecaoDecks rodada={rodada} mesa={mesa} />}
       {mesa.alteradaPor && !editando && (
         <p className="mt-1 text-[0.7rem] text-zinc-500">Registrado por {mesa.alteradaPor} em {formatarDataHora(mesa.alteradaEm)}</p>
       )}
@@ -478,5 +481,42 @@ function SugestaoNovaRodada({ rodada }: { rodada: Rodada }) {
       </button>
       <div className="w-full"><ErroEmLinha erro={criar.error} /></div>
     </div>
+  )
+}
+
+/**
+ * Corrige o deck de quem jogou a mesa (ex.: o lojista marcou o deck errado). Funciona também com a rodada encerrada,
+ * enquanto a temporada estiver aberta; o ranking de comandantes é recalculado.
+ */
+function CorrecaoDecks({ rodada, mesa }: { rodada: Rodada; mesa: Mesa }) {
+  const decks = useDecks()
+  const trocar = useTrocarDeck()
+  const encerrada = rodada.situacao === 'Encerrada'
+
+  async function escolher(idParticipacao: number, idDeck: number, nomeJogador: string) {
+    if (encerrada && !confirm(`Trocar o deck de ${nomeJogador} nesta rodada encerrada?`)) return
+    await trocar.mutateAsync({ idParticipacao, idDeck })
+  }
+
+  return (
+    <details className="mt-2 text-xs text-zinc-400">
+      <summary className="cursor-pointer select-none hover:text-zinc-200">Corrigir decks desta mesa</summary>
+      <ul className="mt-2 space-y-1.5">
+        {[...mesa.cadeiras].sort((a, b) => a.numero - b.numero).map(({ participacao: p }) => {
+          const doJogador = (decks.data ?? []).filter((d) => d.idJogador === p.idJogador)
+          return (
+            <li key={p.id} className="grid grid-cols-[minmax(0,7rem)_1fr] items-center gap-2">
+              <span className="truncate text-zinc-300">{p.nomeJogador}</span>
+              <select className="min-w-0 py-1 text-sm" value={p.idDeck} disabled={trocar.isPending || doJogador.length < 2}
+                aria-label={`Deck de ${p.nomeJogador}`} onChange={(e) => escolher(p.id, Number(e.target.value), p.nomeJogador)}>
+                {doJogador.length === 0 && <option value={p.idDeck}>{p.nomeDeck}</option>}
+                {doJogador.map((d) => <option key={d.id} value={d.id}>{d.nome} — {d.comandantes.map((c) => c.nome).join(' + ')}</option>)}
+              </select>
+            </li>
+          )
+        })}
+      </ul>
+      <ErroEmLinha erro={trocar.error} />
+    </details>
   )
 }

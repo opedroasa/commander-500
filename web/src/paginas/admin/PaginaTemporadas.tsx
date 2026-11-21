@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, CalendarClock, Crown, Flag, Lock, Minus, Pencil, Plus, Settings, Trash2, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, CalendarClock, Camera, Crown, Flag, Lock, Minus, Pencil, Plus, Settings, Trash2, X } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import {
@@ -7,6 +7,7 @@ import {
 } from '../../api/consultas'
 import type { ConfiguracaoTemporada, CriterioDesempate, FinalistaSugerido, ModoPontuacao, Temporada } from '../../api/tipos'
 import { CabecalhoPagina, CaixaErro, Campo, Carregando, ErroEmLinha, Janela, LegendaSiglas, Vazio } from '../../componentes/comum'
+import { JanelaFoto } from '../../componentes/Fotos'
 import {
   deCampoDataHora, explicacaoModoPontuacao, formatarData, formatarDiaEHora, hojeIso, paraCampoDataHora, rotuloCriterioDesempate,
   rotuloModoPontuacao,
@@ -21,6 +22,7 @@ export function PaginaTemporadas() {
   const [emConfiguracao, definirEmConfiguracao] = useState<Temporada | null>(null)
   const [emProximaEtapa, definirEmProximaEtapa] = useState<Temporada | null>(null)
   const [emMesaFinal, definirEmMesaFinal] = useState<Temporada | null>(null)
+  const [emFoto, definirEmFoto] = useState<Temporada | null>(null)
 
   if (temporadas.isPending) return <Carregando />
   if (temporadas.error) return <CaixaErro erro={temporadas.error} aoTentarDeNovo={() => temporadas.refetch()} />
@@ -78,6 +80,9 @@ export function PaginaTemporadas() {
                   {t.ativa && porColocacao && !t.idEtapaFinal && (
                     <button className="botao-secundario botao-pequeno" onClick={() => definirEmMesaFinal(t)}><Crown className="size-4" aria-hidden />Mesa final</button>
                   )}
+                  <button className="botao-secundario botao-pequeno" onClick={() => definirEmFoto(t)} title="Foto de destaque (aparece na temporada e no Hall da Fama)">
+                    <Camera className="size-4" aria-hidden />{t.urlFoto ? 'Foto ✓' : 'Foto'}
+                  </button>
                   <button className="botao-discreto botao-pequeno" onClick={() => definirEmEdicao(t)} aria-label="Editar"><Pencil className="size-4" /></button>
                   {t.ativa && <button className="botao-discreto botao-pequeno" onClick={() => confirmarEncerramento(t)}><Flag className="size-4" aria-hidden />Encerrar</button>}
                   {t.quantidadeRodadas === 0 && (
@@ -100,6 +105,10 @@ export function PaginaTemporadas() {
       <JanelaConfiguracao key={`configuracao-${emConfiguracao?.id ?? 'nenhuma'}`} temporada={emConfiguracao} aoFechar={() => definirEmConfiguracao(null)} />
       <JanelaProximaEtapa key={`proxima-${emProximaEtapa?.id ?? 'nenhuma'}`} temporada={emProximaEtapa} aoFechar={() => definirEmProximaEtapa(null)} />
       {emMesaFinal && <JanelaMesaFinal temporada={emMesaFinal} aoFechar={() => definirEmMesaFinal(null)} />}
+      {emFoto && (
+        <JanelaFoto tipo="temporadas" id={emFoto.id} urlAtual={emFoto.urlFoto} legendaAtual={emFoto.legendaFoto}
+          titulo={`Foto de destaque · ${emFoto.nome}`} aoFechar={() => definirEmFoto(null)} />
+      )}
     </>
   )
 }

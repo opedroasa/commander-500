@@ -10,9 +10,11 @@ namespace Commander500.Aplicacao.Comum;
 /// <summary>Converte entidades do domínio nos objetos de resposta da API (mapeamento manual, sem AutoMapper).</summary>
 public static class Mapeamento
 {
-    public static TemporadaResposta ParaResposta(this Temporada t, int quantidadeRodadas, int quantidadeEtapas, int? idEtapaFinal) =>
+    /// <param name="urlFoto">Endereço público da foto da temporada (montado pelo armazenamento de fotos).</param>
+    public static TemporadaResposta ParaResposta(this Temporada t, int quantidadeRodadas, int quantidadeEtapas, int? idEtapaFinal, string? urlFoto) =>
         new(t.Id, t.Nome, t.DataInicio, t.DataFim, t.Ativa, t.ConfiguracaoTravada, ConfiguracaoTemporada.De(t), quantidadeRodadas, quantidadeEtapas,
-            t.ProximaEtapaEm is { } em ? DateTime.SpecifyKind(em, DateTimeKind.Utc) : null, t.PrazoListas, idEtapaFinal);
+            t.ProximaEtapaEm is { } em ? DateTime.SpecifyKind(em, DateTimeKind.Utc) : null, t.PrazoListas, idEtapaFinal,
+            urlFoto, t.LegendaFoto);
 
     public static ComandanteResposta ParaResposta(this Comandante c) => new(c.Id, c.Nome, c.UrlArte, c.UrlImagem, c.IdentidadeCor);
 
@@ -58,7 +60,8 @@ public static class Mapeamento
             participacoes.Select(p => p.ParaResposta()).ToList(),
             participacoes.Where(p => p.Bye).Select(p => p.ParaResposta()).ToList(),
             mesas,
-            r.Etapa?.Final ?? false, r.Etapa?.RodadasPrevistas, FluxoRodada.EhRetroativa(r, FusoLoja.Hoje(agoraUtc)));
+            r.Etapa?.Final ?? false, r.Etapa?.RodadasPrevistas, FluxoRodada.EhRetroativa(r, FusoLoja.Hoje(agoraUtc)),
+            r.Temporada?.Ativa ?? true);
     }
 
     public static EstatisticaComandanteResposta ParaResposta(this LinhaEstatisticaComandante linha, IReadOnlyDictionary<int, Comandante> comandantes) => new(

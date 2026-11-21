@@ -1,8 +1,9 @@
-import { ChevronRight, Crown, History, Medal, Plus } from 'lucide-react'
+import { Camera, ChevronRight, Crown, History, Medal, Plus } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { useCriarRodada, useRodadasTemporada, useSalvarTemporada, useTemporadas } from '../../api/consultas'
-import type { Rodada, Temporada } from '../../api/tipos'
+import { useCriarRodada, useEtapasTemporada, useRodadasTemporada, useSalvarTemporada, useTemporadas } from '../../api/consultas'
+import type { Etapa, Rodada, Temporada } from '../../api/tipos'
+import { JanelaFoto } from '../../componentes/Fotos'
 import { CabecalhoPagina, CaixaErro, Campo, Carregando, ErroEmLinha, Janela, SeloSituacaoRodada, Vazio } from '../../componentes/comum'
 import { formatarData, hojeIso } from '../../utilitarios/formatacao'
 
@@ -43,6 +44,10 @@ type PedidoNovaRodada = { data: string } | { grupo: GrupoEtapa }
 function EtapasDaTemporada({ temporada }: { temporada: Temporada }) {
   const rodadas = useRodadasTemporada(temporada.id)
   const [pedido, definirPedido] = useState<PedidoNovaRodada | null>(null)
+  // Etapas (com a foto do top) para o botão "Foto" de cada etapa.
+  const etapas = useEtapasTemporada(temporada.id)
+  const etapaPorId = new Map((etapas.data ?? []).map((e) => [e.id, e]))
+  const [etapaDaFoto, definirEtapaDaFoto] = useState<Etapa | null>(null)
 
   const grupos: GrupoEtapa[] = []
   for (const rodada of rodadas.data ?? []) {
@@ -84,7 +89,13 @@ function EtapasDaTemporada({ temporada }: { temporada: Temporada }) {
               <span className="text-sm text-zinc-400">
                 {formatarData(grupo.data)}{grupo.final && grupo.rodadasPrevistas ? ` · ${grupo.rodadas.length} de ${grupo.rodadasPrevistas} rodadas` : ''}
               </span>
-              <button className="botao-discreto botao-pequeno ml-auto" onClick={() => definirPedido({ grupo })}>
+              {etapaPorId.get(grupo.idEtapa) && (
+                <button className="botao-discreto botao-pequeno ml-auto" onClick={() => definirEtapaDaFoto(etapaPorId.get(grupo.idEtapa)!)}
+                  title="Foto do top da etapa">
+                  <Camera className="size-4" aria-hidden /> {etapaPorId.get(grupo.idEtapa)!.urlFoto ? 'Foto ✓' : 'Foto'}
+                </button>
+              )}
+              <button className={`botao-discreto botao-pequeno ${etapaPorId.get(grupo.idEtapa) ? '' : 'ml-auto'}`} onClick={() => definirPedido({ grupo })}>
                 <Plus className="size-4" aria-hidden /> Rodada nesta etapa
               </button>
             </div>
@@ -105,6 +116,10 @@ function EtapasDaTemporada({ temporada }: { temporada: Temporada }) {
       </div>
 
       {pedido !== null && <JanelaNovaRodada temporada={temporada} pedido={pedido} aoFechar={() => definirPedido(null)} />}
+      {etapaDaFoto && (
+        <JanelaFoto tipo="etapas" id={etapaDaFoto.id} urlAtual={etapaDaFoto.urlFoto} legendaAtual={etapaDaFoto.legendaFoto}
+          titulo={`Foto do top · ${etapaDaFoto.final ? 'Mesa final' : `Etapa ${etapaDaFoto.numero}`}`} aoFechar={() => definirEtapaDaFoto(null)} />
+      )}
     </section>
   )
 }

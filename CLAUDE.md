@@ -18,6 +18,7 @@ e o JSON que vem do Scryfall. Estilo igual ao da Gestão Rastreio Wiki (sem o pr
 | Mesa / cadeira | `Mesa`, `Cadeira` | `Mesas`, `Cadeiras` |
 | Usuário do lojista | `Administrador` | `Administradores` |
 | Regulamento (o "tratado") | `Regulamento` (HTML do editor visual) | `Regulamentos` |
+| Configurações da loja | `ConfiguracaoLoja` (link do grupo de WhatsApp) | `ConfiguracoesLoja` |
 | Situações | `SituacaoRodada` (Rascunho, Sorteada, EmAndamento, Encerrada), `SituacaoDeck` (Pendente, Aprovado, Reprovado), `ResultadoMesa` (Pendente, Vitoria, Empate), `CriterioDesempate`, `ModoPontuacao` (ColocacaoNaEtapa, SomaDasRodadas) | gravadas como texto |
 
 ## Estrutura (arquitetura limpa)
@@ -25,23 +26,26 @@ e o JSON que vem do Scryfall. Estilo igual ao da Gestão Rastreio Wiki (sem o pr
 ```
 Commander500.sln                   6 projetos; F5 na Commander500.Api (perfil http) sobe banco + Api + site (SpaProxy)
 src/Commander500.Dominio/          não depende de nada
-  Entidades/                       Temporada, Jogador, Comandante, Deck, Etapa, Rodada (+ Participacao, Mesa, Cadeira), Administrador, Regulamento
+  Entidades/                       Temporada, Jogador, Comandante, Deck, Etapa, Rodada (+ Participacao, Mesa, Cadeira), Administrador, Regulamento, ConfiguracaoLoja
   Enumeradores/                    SituacaoRodada, SituacaoDeck, ResultadoMesa, CriterioDesempate, ModoPontuacao
   Regras/                          regras puras e testáveis: FluxoRodada (máquina de estados, mesas à mão, quem começa),
                                    SorteadorMesas, CalculadoraRanking (soma das rodadas), CalculadoraRankingEtapa,
                                    CalculadoraRankingTemporada (escolhe o modo; colocação + final), CalculadoraEstatisticasComandante,
-                                   RegrasEtapa (etapas por data, mesa final), RegrasTemporada, RegrasAdministrador, GeradorAleatorio
+                                   RegrasEtapa (etapas por data, mesa final), RegrasTemporada, RegrasAdministrador, RegrasFoto, RegrasLoja,
+                                   RegrasHallDaFama, GeradorAleatorio
   Comum/                           Excecoes (RegraNegocio, DadosInvalidos, NaoEncontrado, ServicoIndisponivel), NomeComandante, FusoLoja
 src/Commander500.Aplicacao/        casos de uso (serviços de aplicação, sem MediatR)
   Servicos/                        ServicoTemporada, ServicoRodada, ServicoJogador, ServicoDeck, ServicoComandante,
-                                   ServicoEstatisticas, ServicoAutenticacao, ServicoAdministrador, ServicoRegulamento
+                                   ServicoEstatisticas, ServicoAutenticacao, ServicoAdministrador, ServicoRegulamento,
+                                   ServicoFotos, ServicoConfiguracaoLoja, ServicoHallDaFama
   Modelos/                         Envios.cs (o que o site manda) e Respostas.cs (o que a Api devolve)
-  Interfaces/                      IContextoBanco, IClienteScryfall, IServicoSenha, IGeradorToken (implementados na Infraestrutura)
+  Interfaces/                      IContextoBanco, IClienteScryfall, IServicoSenha, IGeradorToken, IArmazenamentoFotos (implementados na Infraestrutura)
   Comum/                           Mapeamento (entidade → resposta), ConsultasRodada (Includes)
 src/Commander500.Infraestrutura/   EF Core + PostgreSQL e serviços técnicos
   Dados/                           ContextoBanco, Configuracoes/, Migracoes/, SemeadorBanco, RegulamentoInicial (texto do tratado), StringConexao
   Scryfall/                        ClienteScryfall (cache + 100 ms entre chamadas), ServicoEnriquecimentoScryfall (rotina em 2º plano)
   Seguranca/                       OpcoesJwt, GeradorTokenJwt, ServicoSenha
+  Fotos/                           OpcoesFotos, ArmazenamentoFotosSupabase (produção), ArmazenamentoFotosLocal (dev, pasta fotos-local/)
 src/Commander500.Api/              Program.cs, Endpoints/ (EndpointsPublicos, EndpointsAdmin), Comum/TratadorErros
 tests/Commander500.Testes/         xUnit, testa Dominio/Regras com grafo em memória (MontadorRodada, FabricaDecks)
 web/                               React 19 + Vite + TS + Tailwind v4, mobile-first (projeto Commander500.Web.esproj na solução)
@@ -49,18 +53,20 @@ web/                               React 19 + Vite + TS + Tailwind v4, mobile-fi
   src/autenticacao/                ContextoAutenticacao (login do admin)
   src/componentes/                 DesenhoMesa (mesa retangular), Cronometro, QuadroRodada, Layout (logo + tema), ArteComandante,
                                    RankingComandantes, SeletorComandante (busca Scryfall), JanelaDeck, JanelaPerfilJogador,
-                                   MontagemMesas (mesas à mão + quem começa), EditorRegulamento (TipTap), comum.tsx
+                                   MontagemMesas (mesas à mão + quem começa), EditorRegulamento (TipTap), Fotos (JanelaFoto, FotoDestaque),
+                                   FundoAnimado (brasas e símbolos de mana), comum.tsx
   src/paginas/publico/             PaginaInicial (banner da temporada + próxima etapa), PaginaTemporada (ranking/etapas/comandantes),
-                                   PaginaComandantes, PaginasAoVivo (Ao vivo + Rodada), PaginaRegras
+                                   PaginaComandantes, PaginasAoVivo (Ao vivo + Rodada), PaginaRegras, PaginaHallDaFama
   src/paginas/admin/               PaginaLogin, PaginaEtapasRodadas, PaginaConducaoRodada, PaginaJogadores, PaginaDecks,
-                                   PaginaTemporadas (pontuação, próxima etapa, mesa final), PaginaEditarRegras, PaginaAdministradores
-  src/utilitarios/                 formatacao, relogio, tema, comandantes
+                                   PaginaTemporadas (pontuação, próxima etapa, mesa final), PaginaEditarRegras, PaginaAdministradores, PaginaConfiguracoes
+  src/utilitarios/                 formatacao, relogio, tema, comandantes, fotos (reduz a foto antes de enviar)
 docker-compose.yml                 Postgres local (serviço "banco") + perfil "api" opcional
 src/Dockerfile                     imagem da Api (contexto = pasta src/; usada pela Vercel, docker-compose e Render)
 scripts/dev.ps1, dev.sh            sobe banco + Api (que abre o site) com um comando (guia completo no README.md)
 .vscode/                           F5 no VS Code (mesmo fluxo do Visual Studio)
 vercel.json, .vercelignore        publicação na Vercel: serviço "site" (web/, Vite) + serviço "api" (src/, container) no mesmo domínio
 .github/workflows/publicar.yml     merge na main → dotnet test + build do site → vercel deploy --prod
+.github/workflows/manter-supabase-acordado.yml   quarta 14h e sábado 12h (Brasília): GET /api/temporadas para o Supabase não pausar
 docs/DEPLOY.md, docs/MANUAL-PEDRO.md   passo a passo da publicação (Vercel + Supabase) e dos acessos
 render.yaml                        plano B (Api no Render), não usado
 ```
@@ -106,6 +112,7 @@ A porta 5080 também é usada pela Gestão Rastreio Wiki (outro projeto do Pedro
 | `Semente__DadosDemonstracao` | `true` cria 1 temporada + 10 jogadores/decks + 3 rodadas encerradas se não houver temporadas |
 | `Swagger__Habilitado` | padrão `true` |
 | `Scryfall__Habilitado` | padrão `true`: rotina em 2º plano que busca arte/cores dos comandantes salvos só com o nome |
+| `Fotos__SupabaseUrl`, `Fotos__SupabaseChave`, `Fotos__Bucket` | fotos no Supabase Storage (bucket público `fotos`); sem elas, pasta local `fotos-local/` (só dev) |
 | `PORT` | se definido, a Api escuta nessa porta (Dockerfile e Vercel: `8080`) |
 
 ## Convenções
@@ -184,5 +191,12 @@ A porta 5080 também é usada pela Gestão Rastreio Wiki (outro projeto do Pedro
   se o admin ainda existe, então quem é excluído perde o acesso na hora (1 consulta por requisição do admin).
 - **Supabase com RLS ligado** em todas as tabelas, sem políticas (a Api usa `postgres`, que tem BYPASSRLS) + gatilho
   `ligar_rls_tabelas_novas` para as tabelas criadas por migrations. Produção: `fantasy500.vercel.app`.
+- **Fotos do top** (21/11/2026): etapa e temporada têm `CaminhoFoto` + `LegendaFoto`. O site reduz a foto para 1600 px
+  em JPEG antes de enviar; a Api valida (JPG/PNG/WEBP, até 5 MB) e grava pelo `IArmazenamentoFotos`. O nome do arquivo
+  leva a data (`etapas/12-20261121143005.jpg`) para nunca vir do cache; trocar a foto apaga a antiga.
+- **Hall da Fama** (`/hall-da-fama`): só temporadas encerradas; galeria com o pódio + ranking final completo da escolhida.
+  O deck de cada jogador é o que ele mais usou na temporada (empate: o mais recente).
+- **Grupo de WhatsApp**: link em Admin → Configurações (só aceita https de chat.whatsapp.com / wa.me); aparece no menu e no rodapé.
+- **Correções em rodada encerrada** (resultado e deck do jogador) só enquanto a temporada estiver aberta.
 - Arquitetura limpa com **serviços de aplicação** (sem MediatR) e banco **PostgreSQL** com nomes de tabela = nome do DbSet
   (sem `TB_`). Decisão do Pedro em 18/11/2026; as migrations recomeçaram do zero (`Inicial`).

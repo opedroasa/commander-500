@@ -49,4 +49,10 @@ public record RegulamentoEnvio(string Conteudo);
 
 public record IniciarRodadaEnvio(int? DuracaoMinutos);
 
+/// <summary>Deck correto de um jogador numa rodada (corrige um deck lançado errado).</summary>
+public record TrocaDeckEnvio(int IdDeck);
+
+/// <param name="LinkGrupoWhatsapp">Convite do grupo; vazio esconde o botão do site.</param>
+public record ConfiguracaoLojaEnvio(string? LinkGrupoWhatsapp);
+
 public record ResultadoMesaEnvio(ResultadoMesa Resultado, int? IdParticipacaoVencedora);

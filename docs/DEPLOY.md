@@ -208,6 +208,32 @@ Os dados de exemplo são criados **toda vez que a Api liga e o banco não tem ne
 
 ---
 
+## Fotos do top (Supabase Storage)
+
+O lojista pode subir a foto do top de cada etapa e da temporada (Admin → Rodadas → **Foto** em cada etapa, e Admin →
+Temporadas → **Foto**). O site reduz a foto no celular antes de enviar (~300 KB), então o 1 GB grátis do Supabase
+Storage comporta milhares de fotos.
+
+1. Supabase → **Storage** → **New bucket**: nome `fotos`, marque **Public bucket** (as fotos são públicas, como o site).
+   Em *Allowed MIME types* pode colocar `image/jpeg, image/png, image/webp` e em *File size limit* `5 MB`.
+2. Supabase → **Project Settings → API Keys**: copie a **secret key** (`sb_secret_…`; ou a `service_role`, se o projeto
+   usar as chaves antigas). Ela fica só na Vercel, nunca no site.
+3. Supabase → **Project Settings → Data API** (ou a página inicial do projeto): copie a **Project URL** (`https://xxxx.supabase.co`).
+4. Vercel → projeto → **Settings → Environment Variables** (Production):
+
+   | Variável | Valor |
+   |---|---|
+   | `Fotos__SupabaseUrl` | a Project URL |
+   | `Fotos__SupabaseChave` | a secret key |
+   | `Fotos__Bucket` | `fotos` (só se usar outro nome de bucket) |
+
+5. **Redeploy**.
+
+Sem essas variáveis a Api guarda as fotos numa pasta local (`fotos-local/`, ignorada pelo git). Isso é o que acontece
+em desenvolvimento; na Vercel a pasta some a cada deploy, por isso as variáveis acima são obrigatórias em produção.
+
+---
+
 ## Administradores, variáveis etc.
 
 - **Cadastrar, excluir e trocar senha de administradores:** no site, **Admin → Administradores**. Ninguém exclui o
