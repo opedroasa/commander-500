@@ -21,6 +21,9 @@ public static class InjecaoDependencia
         servicos.AddScoped<ServicoAutenticacao>();
         servicos.AddScoped<ServicoAdministrador>();
         servicos.AddScoped<ServicoRegulamento>();
+        servicos.AddScoped<ServicoFotos>();
+        servicos.AddScoped<ServicoConfiguracaoLoja>();
+        servicos.AddScoped<ServicoHallDaFama>();
         return servicos;
     }
 }

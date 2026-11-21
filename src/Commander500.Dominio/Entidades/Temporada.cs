@@ -51,6 +51,11 @@ public class Temporada
     /// <summary>Último dia para enviar as listas dos decks.</summary>
     public DateOnly? PrazoListas { get; set; }
 
+    // ----- Foto de destaque (top da temporada), mostrada na página da temporada e no Hall da Fama
+    /// <summary>Caminho no armazenamento de fotos; a Api monta o endereço público.</summary>
+    public string? CaminhoFoto { get; set; }
+    public string? LegendaFoto { get; set; }
+
     public List<Rodada> Rodadas { get; set; } = [];
     public List<Etapa> Etapas { get; set; } = [];
 

@@ -46,6 +46,9 @@ export interface Temporada {
   prazoListas: string | null
   /** etapa da mesa final, se já foi formada */
   idEtapaFinal: number | null
+  /** foto de destaque (top da temporada) */
+  urlFoto: string | null
+  legendaFoto: string | null
 }
 
 export interface TemporadaEnvio {
@@ -231,6 +234,8 @@ export interface Rodada {
   rodadasPrevistasEtapa: number | null
   /** data passada: lança resultados e encerra sem timer */
   retroativa: boolean
+  /** temporada aberta: rodada encerrada ainda aceita correção (resultado e deck) */
+  temporadaAtiva: boolean
 }
 
 export interface LoginResposta {
@@ -260,6 +265,9 @@ export interface Etapa {
   /** mesa final do top 4 */
   final: boolean
   rodadasPrevistas: number | null
+  /** foto do top da etapa */
+  urlFoto: string | null
+  legendaFoto: string | null
 }
 
 export interface LinhaRankingEtapa {
@@ -294,6 +302,39 @@ export interface Administrador {
   email: string
   /** true quando é quem está logado */
   usuarioAtual: boolean
+}
+
+// ---------- Fotos, configurações da loja e Hall da Fama
+export interface Foto {
+  urlFoto: string | null
+  legendaFoto: string | null
+}
+
+export interface ConfiguracaoLoja {
+  /** convite do grupo do Commander 500; nulo = botão escondido */
+  linkGrupoWhatsapp: string | null
+}
+
+export interface LinhaHallDaFama {
+  posicao: number
+  idJogador: number
+  nomeJogador: string
+  pontos: number
+  empatado: boolean
+  /** deck que o jogador mais usou na temporada */
+  deck: { id: number; nome: string; comandantes: Comandante[] } | null
+}
+
+export interface TemporadaHallDaFama {
+  id: number
+  nome: string
+  dataInicio: string
+  dataFim: string | null
+  modoPontuacao: ModoPontuacao
+  urlFoto: string | null
+  legendaFoto: string | null
+  /** ranking final completo (o site destaca o top 3) */
+  ranking: LinhaHallDaFama[]
 }
 
 // ---------- Regulamento

@@ -1,5 +1,6 @@
 using Commander500.Aplicacao.Interfaces;
 using Commander500.Infraestrutura.Dados;
+using Commander500.Infraestrutura.Fotos;
 using Commander500.Infraestrutura.Scryfall;
 using Commander500.Infraestrutura.Seguranca;
 using Microsoft.EntityFrameworkCore;
@@ -36,6 +37,14 @@ public static class InjecaoDependencia
         });
         if (configuracao.GetValue("Scryfall:Habilitado", true))
             servicos.AddHostedService<ServicoEnriquecimentoScryfall>();
+
+        // ----- Fotos (top da etapa e da temporada): Supabase Storage se configurado, senão pasta local
+        var opcoesFotos = configuracao.GetSection(OpcoesFotos.Secao).Get<OpcoesFotos>() ?? new OpcoesFotos();
+        servicos.AddSingleton(opcoesFotos);
+        if (opcoesFotos.UsaSupabase)
+            servicos.AddHttpClient<IArmazenamentoFotos, ArmazenamentoFotosSupabase>(cliente => cliente.Timeout = TimeSpan.FromSeconds(30));
+        else
+            servicos.AddSingleton<IArmazenamentoFotos, ArmazenamentoFotosLocal>();
 
         return servicos;
     }

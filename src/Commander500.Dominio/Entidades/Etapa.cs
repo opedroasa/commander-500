@@ -17,5 +17,8 @@ public class Etapa
     public bool Final { get; set; }
     /// <summary>Quantas rodadas os finalistas vão jogar (só na final; informativo para a tela).</summary>
     public int? RodadasPrevistas { get; set; }
+    /// <summary>Foto do top da etapa (caminho no armazenamento de fotos; a Api monta o endereço público).</summary>
+    public string? CaminhoFoto { get; set; }
+    public string? LegendaFoto { get; set; }
     public List<Rodada> Rodadas { get; set; } = [];
 }

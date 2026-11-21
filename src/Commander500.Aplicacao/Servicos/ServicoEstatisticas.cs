@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Commander500.Aplicacao.Servicos;
 
 /// <summary>Consultas de estatística: comandantes, perfil do jogador e etapas. Tudo calculado a partir das rodadas encerradas.</summary>
-public class ServicoEstatisticas(IContextoBanco banco, TimeProvider relogio)
+public class ServicoEstatisticas(IContextoBanco banco, TimeProvider relogio, IArmazenamentoFotos fotos)
 {
     private DateTime Agora => relogio.GetUtcNow().UtcDateTime;
 
@@ -165,7 +165,7 @@ public class ServicoEstatisticas(IContextoBanco banco, TimeProvider relogio)
             rodadas.Select(r => r.ParaResposta(Agora)).ToList());
     }
 
-    private static EtapaResposta ParaResposta(Etapa etapa, Temporada temporada, IEnumerable<Rodada> rodadas, IReadOnlyDictionary<int, string> nomes)
+    private EtapaResposta ParaResposta(Etapa etapa, Temporada temporada, IEnumerable<Rodada> rodadas, IReadOnlyDictionary<int, string> nomes)
     {
         var lideres = CalculadoraRankingEtapa.Calcular(rodadas, nomes, temporada)
             .Where(l => l.Posicao == 1)
@@ -173,6 +173,6 @@ public class ServicoEstatisticas(IContextoBanco banco, TimeProvider relogio)
             .ToList();
         return new EtapaResposta(etapa.Id, etapa.IdTemporada, temporada.Nome, etapa.Numero, etapa.Data, etapa.Rodadas.Count,
             etapa.Rodadas.Count(r => r.Situacao == SituacaoRodada.Encerrada), EstaConcluida(etapa), lideres,
-            etapa.Final, etapa.RodadasPrevistas);
+            etapa.Final, etapa.RodadasPrevistas, fotos.Url(etapa.CaminhoFoto), etapa.LegendaFoto);
     }
 }

@@ -119,6 +119,30 @@ namespace Commander500.Infraestrutura.Dados.Migracoes
                     b.ToTable("Comandantes");
                 });
 
+            modelBuilder.Entity("Commander500.Dominio.Entidades.ConfiguracaoLoja", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("AlteradaEm")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("AlteradaPor")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("LinkGrupoWhatsapp")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ConfiguracoesLoja");
+                });
+
             modelBuilder.Entity("Commander500.Dominio.Entidades.Deck", b =>
                 {
                     b.Property<int>("Id")
@@ -181,6 +205,10 @@ namespace Commander500.Infraestrutura.Dados.Migracoes
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("CaminhoFoto")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
                     b.Property<DateOnly>("Data")
                         .HasColumnType("date");
 
@@ -189,6 +217,10 @@ namespace Commander500.Infraestrutura.Dados.Migracoes
 
                     b.Property<int>("IdTemporada")
                         .HasColumnType("integer");
+
+                    b.Property<string>("LegendaFoto")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<int>("Numero")
                         .HasColumnType("integer");
@@ -384,6 +416,10 @@ namespace Commander500.Infraestrutura.Dados.Migracoes
                     b.Property<bool>("Ativa")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("CaminhoFoto")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
                     b.Property<bool>("ConfiguracaoTravada")
                         .HasColumnType("boolean");
 
@@ -397,6 +433,10 @@ namespace Commander500.Infraestrutura.Dados.Migracoes
 
                     b.Property<DateOnly>("DataInicio")
                         .HasColumnType("date");
+
+                    b.Property<string>("LegendaFoto")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<int>("MinimoPartidasPercentualComandante")
                         .HasColumnType("integer");
