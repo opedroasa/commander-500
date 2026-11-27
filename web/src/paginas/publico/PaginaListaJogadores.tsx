@@ -53,7 +53,7 @@ export function PaginaListaJogadores() {
             ))}
           </ul>
           <Paginacao estado={estado} rotulo="jogadores" />
-          <LegendaSiglas className="mt-3" itens={[['🏆', 'títulos de temporada'], ['🏅', 'etapas vencidas'], ['V', 'vitórias'], ['Arte', 'comandante do deck que ele mais jogou']]} />
+          <LegendaSiglas className="mt-3" itens={[['🏆', 'títulos de temporada'], ['🏅', 'etapas vencidas'], ['V', 'vitórias'], ['Arte', 'comandante do deck que ele mais jogou (quem ainda não jogou: um dos decks cadastrados)']]} />
         </>
       )}
     </>

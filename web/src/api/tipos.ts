@@ -365,7 +365,7 @@ export interface JogadorLista {
   /** temporadas encerradas em 1º */
   titulos: number
   etapasVencidas: number
-  /** comandantes do deck que ele mais jogou */
+  /** comandantes do deck que ele mais jogou; sem partidas, do deck reserva (aprovado → com lista → mais recente) */
   comandantesPrincipais: Comandante[]
 }
 

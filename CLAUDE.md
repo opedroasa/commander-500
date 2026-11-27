@@ -32,7 +32,7 @@ src/Commander500.Dominio/          não depende de nada
                                    SorteadorMesas, CalculadoraRanking (soma das rodadas), CalculadoraRankingEtapa,
                                    CalculadoraRankingTemporada (escolhe o modo; colocação + final), CalculadoraEstatisticasComandante,
                                    RegrasEtapa (etapas por data, mesa final), RegrasTemporada, RegrasAdministrador, RegrasFoto, RegrasLoja,
-                                   RegrasHallDaFama, CalculadoraDesempenho (evolução mensal, nêmesis, desempenho por deck),
+                                   RegrasHallDaFama, RegrasDeckDoJogador (deck reserva), CalculadoraDesempenho (evolução mensal, nêmesis, desempenho por deck),
                                    GeradorAleatorio
   Comum/                           Excecoes (RegraNegocio, DadosInvalidos, NaoEncontrado, ServicoIndisponivel), NomeComandante, FusoLoja
 src/Commander500.Aplicacao/        casos de uso (serviços de aplicação, sem MediatR)
@@ -160,6 +160,9 @@ A porta 5080 também é usada pela Gestão Rastreio Wiki (outro projeto do Pedro
 - **Campeão da temporada** = 1º do ranking de uma temporada encerrada (inativa). Campeão da etapa = posição 1
   (empatados dividem) de uma etapa com todas as rodadas encerradas.
 - Mini perfil do jogador é público (sem a observação de revisão dos decks); no admin mostra a situação e permite cadastrar deck.
+- **Arte do jogador sem partidas** (27/11/2026): na lista de jogadores a arte é o deck que ele mais jogou; quem ainda não
+  jogou usa o deck reserva (`RegrasDeckDoJogador.DeckReserva`): aprovado → pendente → reprovado, com lista antes, depois o
+  cadastrado mais recente, depois o nome.
 - **Lista do deck na página do jogador** (27/11/2026): cada card mostra "Sem lista" ou um selo que é o link da lista, com a
   revisão do lojista (Lista aprovada / pendente / recusada, cores de `estiloSituacaoDeck`). A situação é pública; a
   observação da revisão continua só no admin.

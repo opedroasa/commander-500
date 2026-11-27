@@ -127,7 +127,7 @@ public record PontoMensalResposta(string Mes, int Partidas, int Vitorias, int Em
 
 /// <summary>Linha da lista pública de jogadores.</summary>
 /// <param name="Titulos">Temporadas encerradas em que terminou em 1º.</param>
-/// <param name="ComandantesPrincipais">Comandantes do deck que ele mais jogou (para a arte).</param>
+/// <param name="ComandantesPrincipais">Comandantes do deck que ele mais jogou (para a arte); sem partidas, os do deck reserva.</param>
 public record JogadorListaResposta(
     int Id, string Nome, string? Apelido, bool Ativo, int Temporadas, int Partidas, int Vitorias, int Empates,
     double? PercentualVitoria, int Titulos, int EtapasVencidas, IReadOnlyList<ComandanteResposta> ComandantesPrincipais);
