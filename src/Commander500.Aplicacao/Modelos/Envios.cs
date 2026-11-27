@@ -55,4 +55,5 @@ public record TrocaDeckEnvio(int IdDeck);
 /// <param name="LinkGrupoWhatsapp">Convite do grupo; vazio esconde o botão do site.</param>
 public record ConfiguracaoLojaEnvio(string? LinkGrupoWhatsapp);
 
-public record ResultadoMesaEnvio(ResultadoMesa Resultado, int? IdParticipacaoVencedora);
+/// <param name="IdsParticipacoesEmpatadas">Empate parcial: quem ficou no empate (2 ou mais). Vazio = empate entre todos da mesa.</param>
+public record ResultadoMesaEnvio(ResultadoMesa Resultado, int? IdParticipacaoVencedora, IReadOnlyList<int>? IdsParticipacoesEmpatadas = null);

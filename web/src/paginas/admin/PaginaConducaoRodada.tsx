@@ -383,43 +383,73 @@ function CartaoResultadoMesa({ rodada, mesa }: { rodada: Rodada; mesa: Mesa }) {
   const registrar = useRegistrarResultadoMesa()
   const encerrada = rodada.situacao === 'Encerrada'
   const [editando, definirEditando] = useState(mesa.resultado === 'Pendente' && !encerrada)
-  const [idVencedor, definirIdVencedor] = useState<number | null>(null)
-  const nomeVencedor = mesa.cadeiras.find((c) => c.participacao.id === idVencedor)?.participacao.nomeJogador
+  // Jogadores marcados: 1 = vencedor; 2 ou mais = empate só entre eles (os outros perdem).
+  const [marcados, definirMarcados] = useState<number[]>([])
+  const nomeDe = (id: number) => mesa.cadeiras.find((c) => c.participacao.id === id)?.participacao.nomeJogador ?? ''
+  const todos = marcados.length === mesa.cadeiras.length
 
-  async function enviar(resultado: 'Vitoria' | 'Empate') {
+  function alternar(idParticipacao: number) {
+    definirMarcados(marcados.includes(idParticipacao) ? marcados.filter((id) => id !== idParticipacao) : [...marcados, idParticipacao])
+  }
+
+  /** "vitoria" = o único marcado; "empate-marcados" = empate entre os marcados; "empate-todos" = empate geral. */
+  async function enviar(tipo: 'vitoria' | 'empate-marcados' | 'empate-todos') {
     if (encerrada && !confirm('Corrigir o resultado de uma rodada encerrada? O ranking será recalculado.')) return
-    await registrar.mutateAsync({ idMesa: mesa.id, resultado, idParticipacaoVencedora: resultado === 'Vitoria' ? idVencedor : null })
-    definirIdVencedor(null)
+    await registrar.mutateAsync(tipo === 'vitoria'
+      ? { idMesa: mesa.id, resultado: 'Vitoria', idParticipacaoVencedora: marcados[0] }
+      : { idMesa: mesa.id, resultado: 'Empate', idParticipacaoVencedora: null, idsParticipacoesEmpatadas: tipo === 'empate-marcados' ? marcados : [] })
+    definirMarcados([])
     definirEditando(false)
   }
+
+  const empatadosGravados = mesa.cadeiras.filter((c) => c.empatou)
+  const textoResultado = mesa.resultado === 'Vitoria'
+    ? <>Vitória: <b>{nomeDe(mesa.idParticipacaoVencedora ?? 0)}</b></>
+    : mesa.resultado === 'Empate'
+      ? empatadosGravados.length < mesa.cadeiras.length
+        ? <>Empate entre <b>{empatadosGravados.map((c) => c.participacao.nomeJogador).join(', ')}</b></>
+        : 'Empate entre todos'
+      : 'Sem resultado'
 
   return (
     <section className={`cartao p-3 ${editando ? 'ring-1 ring-amber-700/60' : ''}`} aria-label={`Mesa ${mesa.numero}`}>
       <DesenhoMesa
         mesa={mesa}
-        aoClicarCadeira={editando ? (c) => definirIdVencedor(c.participacao.id === idVencedor ? null : c.participacao.id) : undefined}
-        idParticipacaoEscolhida={editando ? idVencedor : undefined}
+        aoClicarCadeira={editando ? (c) => alternar(c.participacao.id) : undefined}
+        idsEscolhidos={editando ? marcados : undefined}
       />
+      {editando && (
+        <p className="mt-2 text-xs text-zinc-400">
+          Toque no vencedor. Empate só entre alguns (ex.: os 2 que sobraram vivos)? Marque esses jogadores. "Empate" sem marcar ninguém = empate entre todos.
+        </p>
+      )}
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {editando ? (
           <>
-            <button className="botao-primario botao-pequeno flex-1" disabled={idVencedor == null || registrar.isPending} onClick={() => enviar('Vitoria')}>
-              <Check className="size-4" aria-hidden /> {nomeVencedor ? `Vitória: ${nomeVencedor}` : 'Selecione o vencedor'}
-            </button>
-            <button className="botao-secundario botao-pequeno" disabled={registrar.isPending} onClick={() => enviar('Empate')}>
-              <Handshake className="size-4" aria-hidden /> Empate
-            </button>
+            {marcados.length <= 1 ? (
+              <button className="botao-primario botao-pequeno flex-1" disabled={marcados.length !== 1 || registrar.isPending} onClick={() => enviar('vitoria')}>
+                <Check className="size-4" aria-hidden /> {marcados.length === 1 ? `Vitória: ${nomeDe(marcados[0])}` : 'Selecione o vencedor'}
+              </button>
+            ) : (
+              <button className="botao-primario botao-pequeno flex-1" disabled={registrar.isPending} onClick={() => enviar(todos ? 'empate-todos' : 'empate-marcados')}>
+                <Handshake className="size-4" aria-hidden /> {todos ? 'Empate entre todos' : `Empate entre ${marcados.length}: ${marcados.map(nomeDe).join(', ')}`}
+              </button>
+            )}
+            {marcados.length === 0 && (
+              <button className="botao-secundario botao-pequeno" disabled={registrar.isPending} onClick={() => enviar('empate-todos')}>
+                <Handshake className="size-4" aria-hidden /> Empate
+              </button>
+            )}
+            {marcados.length > 0 && (
+              <button className="botao-discreto botao-pequeno" onClick={() => definirMarcados([])}>Limpar</button>
+            )}
             {mesa.resultado !== 'Pendente' && (
-              <button className="botao-discreto botao-pequeno" onClick={() => { definirEditando(false); definirIdVencedor(null) }}>Cancelar</button>
+              <button className="botao-discreto botao-pequeno" onClick={() => { definirEditando(false); definirMarcados([]) }}>Cancelar</button>
             )}
           </>
         ) : (
           <>
-            <span className="mr-auto text-sm text-zinc-300">
-              {mesa.resultado === 'Empate' ? 'Empate' : mesa.resultado === 'Vitoria'
-                ? <>Vitória: <b>{mesa.cadeiras.find((c) => c.participacao.id === mesa.idParticipacaoVencedora)?.participacao.nomeJogador}</b></>
-                : 'Sem resultado'}
-            </span>
+            <span className="mr-auto text-sm text-zinc-300">{textoResultado}</span>
             {(!encerrada || rodada.temporadaAtiva) && (
               <button className="botao-discreto botao-pequeno" onClick={() => definirEditando(true)}>
                 <Pencil className="size-3.5" aria-hidden /> {encerrada ? 'Corrigir' : 'Alterar'}

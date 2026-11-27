@@ -31,6 +31,15 @@ public static class EndpointsPublicos
             .WithTags("Público · Loja").AllowAnonymous()
             .WithSummary("Link do grupo de WhatsApp do Commander 500.");
 
+        // ----- Lista pública de jogadores e páginas completas do jogador e do comandante
+        var paginas = app.MapGroup("/api/estatisticas").WithTags("Público · Jogadores e comandantes").AllowAnonymous();
+        paginas.MapGet("/jogadores", (ServicoPaginas s) => s.ListarJogadores())
+            .WithSummary("Jogadores ativos ou que já jogaram, com resumo (títulos, vitórias, deck principal).");
+        paginas.MapGet("/jogadores/{id:int}", (int id, ServicoPaginas s) => s.PaginaJogador(id))
+            .WithSummary("Página do jogador: temporadas, títulos, decks, evolução mês a mês, nêmesis e confrontos.");
+        paginas.MapGet("/comandantes/{chave}", (string chave, ServicoPaginas s) => s.PaginaComandante(chave))
+            .WithSummary("Página do comandante pela chave (ids em ordem, ex.: 12-34 para dupla): números, títulos, evolução e listas.");
+
         app.MapGet("/api/hall-da-fama", (ServicoHallDaFama s) => s.Listar())
             .WithTags("Público · Hall da Fama").AllowAnonymous()
             .WithSummary("Ranking final das temporadas encerradas, com o deck mais usado de cada jogador e a foto do top.");

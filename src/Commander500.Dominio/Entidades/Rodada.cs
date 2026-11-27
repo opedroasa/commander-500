@@ -54,6 +54,17 @@ public class Mesa
     public DateTime? AlteradaEm { get; set; }
     public string? AlteradaPor { get; set; }
     public List<Cadeira> Cadeiras { get; set; } = [];
+
+    /// <summary>
+    /// O jogador desta participação ficou no empate? Empate sem ninguém marcado = todos empataram;
+    /// com marcados (empate parcial), só eles empataram e os outros contam como derrota.
+    /// </summary>
+    public bool Empatou(int idParticipacao)
+    {
+        if (Resultado != ResultadoMesa.Empate) return false;
+        var marcados = Cadeiras.Where(c => c.Empatou).ToList();
+        return marcados.Count == 0 || marcados.Any(c => (c.Participacao?.Id ?? c.IdParticipacao) == idParticipacao);
+    }
 }
 
 /// <summary>Lugar de um jogador na mesa. Número 1..4; a cadeira 1 começa jogando.</summary>
@@ -64,4 +75,9 @@ public class Cadeira
     public int IdParticipacao { get; set; }
     public Participacao? Participacao { get; set; }
     public int Numero { get; set; }
+    /// <summary>
+    /// Empate parcial: true para quem ficou no empate (ex.: 2 sobreviventes de 4). Se a mesa deu empate e ninguém está
+    /// marcado, o empate foi entre todos (como antes). Ver <see cref="Mesa.Empatou"/>.
+    /// </summary>
+    public bool Empatou { get; set; }
 }

@@ -59,7 +59,7 @@ public static class CalculadoraRankingEtapa
                 {
                     var acumulado = Do(participacao.IdJogador);
                     acumulado.Partidas++;
-                    if (mesa.Resultado == ResultadoMesa.Empate)
+                    if (mesa.Empatou(participacao.Id))
                     {
                         acumulado.Empates++;
                         acumulado.Pontos += temporada.PontosEmpate;

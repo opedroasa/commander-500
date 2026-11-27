@@ -207,3 +207,19 @@ html[data-tema="claro"] {
   @media (prefers-reduced-motion: reduce) { .menu-lateral { animation: none; } }
 }
 @keyframes entrar-menu { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+/* Cores das séries dos gráficos (validadas para daltonismo e contraste em cada tema). */
+:root { --cor-serie-1: #e85a17; --cor-serie-2: #4a89dc; }
+html[data-tema="claro"] { --cor-serie-1: #c2410c; --cor-serie-2: #2563eb; }
+
+/* Gráfico de evolução: a linha "se desenha" ao aparecer (some para quem pediu menos movimento). */
+@layer components {
+  .linha-desenhando { stroke-dasharray: 1; stroke-dashoffset: 1; animation: desenhar-linha 1.4s ease-out forwards; }
+  .ponto-surgindo { opacity: 0; animation: surgir-ponto .4s ease-out forwards; }
+  @media (prefers-reduced-motion: reduce) {
+    .linha-desenhando { animation: none; stroke-dashoffset: 0; }
+    .ponto-surgindo { animation: none; opacity: 1; }
+  }
+}
+@keyframes desenhar-linha { to { stroke-dashoffset: 0; } }
+@keyframes surgir-ponto { to { opacity: 1; } }

@@ -49,7 +49,7 @@ public static class CalculadoraRanking
                     var participacao = cadeira.Participacao ?? participacoesPorId[cadeira.IdParticipacao];
                     var acumulado = Do(participacao.IdJogador);
                     acumulado.Partidas++;
-                    if (mesa.Resultado == ResultadoMesa.Empate)
+                    if (mesa.Empatou(participacao.Id))
                     {
                         acumulado.Empates++;
                         acumulado.Pontos += temporada.PontosEmpate;
