@@ -55,6 +55,9 @@ namespace Commander500.Infraestrutura.Dados.Migracoes
                     b.Property<int>("IdParticipacao")
                         .HasColumnType("integer");
 
+                    b.Property<bool>("Empatou")
+                        .HasColumnType("boolean");
+
                     b.Property<int>("Numero")
                         .HasColumnType("integer");
 

@@ -6,6 +6,8 @@ import type { Deck, SituacaoDeck } from '../../api/tipos'
 import { ArteComandante } from '../../componentes/ArteComandante'
 import { CabecalhoPagina, CaixaErro, Campo, Carregando, ErroEmLinha, Janela, SeloSituacaoDeck, Vazio } from '../../componentes/comum'
 import { JanelaDeck } from '../../componentes/JanelaDeck'
+import { Paginacao } from '../../componentes/Paginacao'
+import { usePaginacao } from '../../utilitarios/paginacao'
 import { chaveBusca, nomeComApelido, rotuloSituacaoDeck } from '../../utilitarios/formatacao'
 
 /** Todos os decks, com filtros e revisão (aprovar / reprovar). */
@@ -20,15 +22,16 @@ export function PaginaDecks() {
   const [emEdicao, definirEmEdicao] = useState<Deck | 'novo' | null>(null)
   const [emRevisao, definirEmRevisao] = useState<Deck | null>(null)
 
-  if (decks.isPending || jogadores.isPending) return <Carregando />
-  if (decks.error) return <CaixaErro erro={decks.error} aoTentarDeNovo={() => decks.refetch()} />
-  if (jogadores.error) return <CaixaErro erro={jogadores.error} />
-
   const busca = chaveBusca(filtro)
-  const lista = decks.data
+  const lista = (decks.data ?? [])
     .filter((d) => !filtroJogador || d.idJogador === filtroJogador)
     .filter((d) => !filtroSituacao || d.situacao === filtroSituacao)
     .filter((d) => !busca || chaveBusca(`${d.nome} ${d.nomeJogador} ${d.comandantes.map((c) => c.nome).join(' ')}`).includes(busca))
+  const { itensDaPagina, estado } = usePaginacao(lista, `${busca}|${filtroJogador}|${filtroSituacao}`)
+
+  if (decks.isPending || jogadores.isPending) return <Carregando />
+  if (decks.error) return <CaixaErro erro={decks.error} aoTentarDeNovo={() => decks.refetch()} />
+  if (jogadores.error) return <CaixaErro erro={jogadores.error} />
 
   function definirFiltroUrl(chave: string, valor: string) {
     const novos = new URLSearchParams(parametros)
@@ -64,7 +67,7 @@ export function PaginaDecks() {
       <ErroEmLinha erro={excluir.error} />
       {lista.length === 0 && <Vazio>Nenhum deck encontrado.</Vazio>}
       <ul className="space-y-2">
-        {lista.map((d) => (
+        {itensDaPagina.map((d) => (
           <li key={d.id} className="cartao p-3">
             <div className="flex flex-wrap items-start gap-x-3 gap-y-1">
               <ArteComandante comandantes={d.comandantes} className="h-14 w-16 shrink-0" arredondamento="rounded-lg" />
@@ -91,6 +94,7 @@ export function PaginaDecks() {
           </li>
         ))}
       </ul>
+      <Paginacao estado={estado} rotulo="decks" />
       {emEdicao !== null && (
         <JanelaDeck
           key={`deck-${emEdicao === 'novo' ? `novo-${filtroJogador}` : emEdicao.id}`}

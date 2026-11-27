@@ -17,18 +17,27 @@ interface Propriedades {
   mesa: Mesa
   /** Jogadores destacados (ex.: busca "encontre sua mesa"). */
   idsJogadoresDestacados?: Set<number>
-  /** Lançamento de resultado no admin: clicar numa cadeira escolhe o vencedor. */
+  /** Lançamento de resultado no admin: clicar numa cadeira marca/desmarca o jogador. */
   aoClicarCadeira?: (cadeira: Cadeira) => void
-  /** Vencedor escolhido no admin, antes de salvar. */
-  idParticipacaoEscolhida?: number | null
+  /**
+   * Jogadores marcados no admin, antes de salvar: 1 = vencedor; 2 ou mais = empate entre eles.
+   * Indefinido = mostra o resultado gravado.
+   */
+  idsEscolhidos?: number[]
   mostrarAvisoDeck?: boolean
 }
 
 /** Desenho da mesa (pod) com as cadeiras (normalmente 4), jogador e comandante em cada uma (spec 4.3). */
-export function DesenhoMesa({ mesa, idsJogadoresDestacados, aoClicarCadeira, idParticipacaoEscolhida, mostrarAvisoDeck = true }: Propriedades) {
-  const idVencedor = idParticipacaoEscolhida !== undefined ? idParticipacaoEscolhida : mesa.idParticipacaoVencedora
-  const decidida = mesa.resultado !== 'Pendente' || idParticipacaoEscolhida != null
-  const empate = mesa.resultado === 'Empate' && idParticipacaoEscolhida == null
+export function DesenhoMesa({ mesa, idsJogadoresDestacados, aoClicarCadeira, idsEscolhidos, mostrarAvisoDeck = true }: Propriedades) {
+  const editando = idsEscolhidos !== undefined
+  // Quem aparece como vencedor, quem aparece no empate e quem fica apagado (perdeu).
+  const idVencedor = editando ? (idsEscolhidos.length === 1 ? idsEscolhidos[0] : null)
+    : mesa.resultado === 'Vitoria' ? mesa.idParticipacaoVencedora : null
+  const empatados = new Set(editando ? (idsEscolhidos.length >= 2 ? idsEscolhidos : [])
+    : mesa.cadeiras.filter((c) => c.empatou).map((c) => c.participacao.id))
+  const decidida = idVencedor != null || empatados.size > 0
+  const empateGravado = !editando && mesa.resultado === 'Empate'
+  const empateParcial = empateGravado && empatados.size < mesa.cadeiras.length
   const colunas = Math.max(2, Math.ceil(mesa.cadeiras.length / 2))
 
   return (
@@ -37,9 +46,9 @@ export function DesenhoMesa({ mesa, idsJogadoresDestacados, aoClicarCadeira, idP
       <div style={{ gridColumn: '1 / -1' }} className="row-start-2 flex h-16 items-center justify-center gap-3 rounded-lg border-[5px] border-[#6b3f1d] bg-[radial-gradient(ellipse_at_center,#1f5c3a,#0f3a24_75%)] shadow-[inset_0_0_18px_rgba(0,0,0,.55),0_2px_6px_rgba(0,0,0,.35)]">
         <span className="font-display text-xs uppercase tracking-[0.3em] text-[#cfe8d6]/80">Mesa</span>
         <span className="font-display text-3xl font-bold leading-none text-white">{mesa.numero}</span>
-        {empate && (
+        {(empateGravado || (editando && empatados.size > 0)) && (
           <span className="inline-flex items-center gap-1 rounded-full bg-black/40 px-2 py-0.5 text-[0.7rem] font-semibold text-white">
-            <Handshake className="size-3" aria-hidden /> Empate
+            <Handshake className="size-3" aria-hidden /> {empateParcial || (editando && empatados.size < mesa.cadeiras.length) ? `Empate entre ${empatados.size}` : 'Empate'}
           </span>
         )}
       </div>
@@ -49,8 +58,9 @@ export function DesenhoMesa({ mesa, idsJogadoresDestacados, aoClicarCadeira, idP
           key={cadeira.numero}
           cadeira={cadeira}
           posicao={posicaoDaCadeira(cadeira.numero, colunas)}
-          vencedor={idVencedor === cadeira.participacao.id && !empate}
-          apagada={decidida && !empate && idVencedor !== cadeira.participacao.id && idVencedor != null}
+          vencedor={idVencedor === cadeira.participacao.id}
+          empatou={empatados.has(cadeira.participacao.id)}
+          apagada={decidida && idVencedor !== cadeira.participacao.id && !empatados.has(cadeira.participacao.id)}
           destacada={idsJogadoresDestacados?.has(cadeira.participacao.idJogador) ?? false}
           aoClicar={aoClicarCadeira ? () => aoClicarCadeira(cadeira) : undefined}
           mostrarAvisoDeck={mostrarAvisoDeck}
@@ -60,10 +70,12 @@ export function DesenhoMesa({ mesa, idsJogadoresDestacados, aoClicarCadeira, idP
   )
 }
 
-function CartaoCadeira({ cadeira, posicao, vencedor, apagada, destacada, aoClicar, mostrarAvisoDeck }: {
+function CartaoCadeira({ cadeira, posicao, vencedor, empatou, apagada, destacada, aoClicar, mostrarAvisoDeck }: {
   cadeira: Cadeira
   posicao: { gridRowStart: number; gridColumnStart: number }
   vencedor: boolean
+  /** ficou no empate (num empate parcial só alguns da mesa) */
+  empatou: boolean
   apagada: boolean
   destacada: boolean
   aoClicar?: () => void
@@ -77,13 +89,15 @@ function CartaoCadeira({ cadeira, posicao, vencedor, apagada, destacada, aoClica
     <Elemento
       type={aoClicar ? 'button' : undefined}
       onClick={aoClicar}
-      aria-pressed={aoClicar ? vencedor : undefined}
-      aria-label={aoClicar ? `Marcar ${participacao.nomeJogador} como vencedor` : undefined}
+      aria-pressed={aoClicar ? vencedor || empatou : undefined}
+      aria-label={aoClicar ? `Marcar ${participacao.nomeJogador}` : undefined}
       style={posicao}
       className={`relative isolate flex min-h-[5.5rem] min-w-0 flex-col justify-end overflow-hidden rounded-xl border p-2 text-left transition ${
         vencedor
           ? 'border-amber-400 shadow-[0_0_0_1px_rgba(242,101,34,.6),0_0_18px_rgba(242,101,34,.3)]'
-          : destacada
+          : empatou
+            ? 'border-sky-400/80 shadow-[0_0_0_1px_rgba(74,137,220,.5)]'
+            : destacada
             ? 'border-sky-400 ring-2 ring-sky-400/40'
             : 'border-zinc-800'
       } bg-zinc-900 ${apagada ? 'opacity-50' : ''} ${aoClicar ? 'cursor-pointer hover:border-amber-500/70 active:scale-[.98]' : ''}`}
@@ -106,6 +120,7 @@ function CartaoCadeira({ cadeira, posicao, vencedor, apagada, destacada, aoClica
         </span>
         {cadeira.numero === 1 && <span className="text-[0.6rem] font-semibold uppercase tracking-wide text-amber-400">começa</span>}
         {vencedor && <Crown className="ml-auto size-4 shrink-0 text-amber-400" aria-label="Vencedor" />}
+        {empatou && <Handshake className="ml-auto size-4 shrink-0 text-sky-300" aria-label="Empatou" />}
       </div>
       <div className="line-clamp-2 text-sm font-semibold leading-tight text-zinc-50 break-words">{participacao.nomeJogador}</div>
       <div className="mt-0.5 line-clamp-2 text-[0.7rem] leading-tight text-zinc-300 break-words">{participacao.comandantes || participacao.nomeDeck}</div>

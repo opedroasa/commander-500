@@ -49,7 +49,7 @@ public static class CalculadoraEstatisticasComandante
                     if (acumulado is null) continue;
                     acumulado.Partidas++;
                     acumulado.IdsJogadores.Add(participacao.IdJogador);
-                    if (mesa.Resultado == ResultadoMesa.Empate) acumulado.Empates++;
+                    if (mesa.Empatou(participacao.Id)) acumulado.Empates++;
                     else if (mesa.IdParticipacaoVencedora == participacao.Id) acumulado.Vitorias++;
                 }
             }

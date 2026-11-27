@@ -4,6 +4,8 @@ import { useExcluirJogador, useJogadores, useSalvarJogador } from '../../api/con
 import type { Jogador } from '../../api/tipos'
 import { CabecalhoPagina, CaixaErro, Campo, Carregando, ErroEmLinha, Janela, Vazio } from '../../componentes/comum'
 import { JanelaPerfilJogador } from '../../componentes/JanelaPerfilJogador'
+import { Paginacao } from '../../componentes/Paginacao'
+import { usePaginacao } from '../../utilitarios/paginacao'
 import { chaveBusca } from '../../utilitarios/formatacao'
 
 /** Cadastro de jogadores. Clicar no jogador abre o mini perfil, onde se cadastram os decks. */
@@ -15,13 +17,14 @@ export function PaginaJogadores() {
   const [mostrarInativos, definirMostrarInativos] = useState(false)
   const [idPerfil, definirIdPerfil] = useState<number | null>(null)
 
-  if (jogadores.isPending) return <Carregando />
-  if (jogadores.error) return <CaixaErro erro={jogadores.error} aoTentarDeNovo={() => jogadores.refetch()} />
-
   const busca = chaveBusca(filtro)
-  const lista = jogadores.data
+  const lista = (jogadores.data ?? [])
     .filter((j) => mostrarInativos || j.ativo)
     .filter((j) => !busca || chaveBusca(`${j.nome} ${j.apelido ?? ''}`).includes(busca))
+  const { itensDaPagina, estado } = usePaginacao(lista, `${busca}|${mostrarInativos}`)
+
+  if (jogadores.isPending) return <Carregando />
+  if (jogadores.error) return <CaixaErro erro={jogadores.error} aoTentarDeNovo={() => jogadores.refetch()} />
 
   async function confirmarExclusao(jogador: Jogador) {
     if (confirm(`Excluir ${jogador.nome}? Os decks dele também serão excluídos.`)) await excluir.mutateAsync(jogador.id)
@@ -43,7 +46,7 @@ export function PaginaJogadores() {
       <ErroEmLinha erro={excluir.error} />
       {lista.length === 0 && <Vazio>Nenhum jogador.</Vazio>}
       <ul className="space-y-1.5">
-        {lista.map((j) => (
+        {itensDaPagina.map((j) => (
           <li key={j.id} className={`cartao flex items-center gap-3 p-1.5 pl-3 ${j.ativo ? '' : 'opacity-60'}`}>
             <button className="min-w-0 flex-1 rounded-lg py-1.5 text-left hover:text-amber-300" onClick={() => definirIdPerfil(j.id)}
               aria-label={`Abrir perfil de ${j.nome}`}>
@@ -61,6 +64,7 @@ export function PaginaJogadores() {
           </li>
         ))}
       </ul>
+      <Paginacao estado={estado} rotulo="jogadores" />
       <JanelaJogador key={`jogador-${emEdicao === 'novo' ? 'novo' : emEdicao?.id ?? 'nenhum'}`} jogador={emEdicao} aoFechar={() => definirEmEdicao(null)} />
       <JanelaPerfilJogador idJogador={idPerfil} admin aoFechar={() => definirIdPerfil(null)} />
     </>

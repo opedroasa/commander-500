@@ -44,7 +44,7 @@ public static class Mapeamento
         var mesas = r.Mesas.OrderBy(m => m.Numero).Select(m => new MesaResposta(
             m.Id, m.Numero, m.Resultado, m.IdParticipacaoVencedora, m.AlteradaEm, m.AlteradaPor,
             m.Cadeiras.OrderBy(c => c.Numero)
-                .Select(c => new CadeiraResposta(c.Numero, (c.Participacao ?? participacoesPorId[c.IdParticipacao]).ParaResposta()))
+                .Select(c => new CadeiraResposta(c.Numero, (c.Participacao ?? participacoesPorId[c.IdParticipacao]).ParaResposta(), m.Empatou(c.IdParticipacao)))
                 .ToList())).ToList();
 
         // Posição dentro da etapa: 1 + rodadas da mesma etapa com número menor na temporada.

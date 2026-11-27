@@ -32,6 +32,11 @@ export function JanelaPerfilJogador({ idJogador, idTemporada = null, admin = fal
           <div className="space-y-5">
             {admin && !p.ativo && <p className="rounded-lg bg-zinc-800 px-3 py-2 text-sm text-zinc-300">Jogador inativo.</p>}
 
+            {/* Abre em outra aba para quem está vendo um ranking não perder a tela em que estava. */}
+            <a href={`/jogadores/${p.id}`} target="_blank" rel="noopener" className="botao-secundario botao-pequeno w-fit">
+              <ExternalLink className="size-4" aria-hidden /> Ver perfil completo
+            </a>
+
             {p.temporada && (
               <section>
                 <h3 className="mb-2 text-xs font-semibold uppercase tracking-widest text-zinc-400">{p.temporada.nomeTemporada}</h3>

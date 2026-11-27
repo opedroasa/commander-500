@@ -1,4 +1,4 @@
-import { Home, LogOut, Menu, Moon, Radio, ScrollText, Shield, Sparkles, Sun, Trophy, X } from 'lucide-react'
+import { Home, LogOut, Menu, Moon, Radio, ScrollText, Shield, Sparkles, Sun, Trophy, Users, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router'
 import { useConfiguracaoLoja } from '../api/consultas'
@@ -42,6 +42,7 @@ function BotaoTema() {
 const itensMenu = [
   { para: '/', rotulo: 'Início', icone: Home, exato: true },
   { para: '/comandantes', rotulo: 'Comandantes', icone: Sparkles },
+  { para: '/jogadores', rotulo: 'Jogadores', icone: Users },
   { para: '/hall-da-fama', rotulo: 'Hall da Fama', icone: Trophy },
   { para: '/regras', rotulo: 'Regras', icone: ScrollText },
   { para: '/ao-vivo', rotulo: 'Ao vivo', icone: Radio },

@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { requisitar } from './cliente'
 import type {
   Administrador, CartaScryfall, ConfiguracaoLoja, ConfiguracaoTemporada, Deck, DeckEnvio, DetalheEtapa, EstatisticaComandante, Etapa, FinalistaSugerido, Foto, Jogador,
-  JogadorEnvio, LinhaRanking, PerfilJogador, Regulamento, ResultadoMesa, Rodada, SituacaoDeck, Temporada, TemporadaEnvio, TemporadaHallDaFama,
+  JogadorEnvio, JogadorLista, LinhaRanking, PaginaComandante, PaginaJogador, PerfilJogador, Regulamento, ResultadoMesa, Rodada, SituacaoDeck, Temporada, TemporadaEnvio, TemporadaHallDaFama,
 } from './tipos'
 
 /** Chaves do cache. Alterar algo "invalida" as chaves relacionadas para a tela buscar de novo. */
@@ -24,6 +24,9 @@ export const chaves = {
   regulamento: ['regulamento'] as const,
   configuracaoLoja: ['configuracao-loja'] as const,
   hallDaFama: ['hall-da-fama'] as const,
+  jogadoresPublicos: ['estatisticas', 'jogadores'] as const,
+  paginaJogador: (id: number) => ['estatisticas', 'jogadores', id] as const,
+  paginaComandante: (chave: string) => ['estatisticas', 'comandantes', chave] as const,
   administradores: ['administradores'] as const,
   finalistas: (id: number, quantidade: number) => ['temporadas', id, 'finalistas', quantidade] as const,
 }
@@ -55,6 +58,12 @@ export const useConfiguracaoLoja = () =>
   useQuery({ queryKey: chaves.configuracaoLoja, queryFn: () => requisitar<ConfiguracaoLoja>('/api/configuracoes-loja'), staleTime: 5 * 60_000 })
 export const useHallDaFama = () =>
   useQuery({ queryKey: chaves.hallDaFama, queryFn: () => requisitar<TemporadaHallDaFama[]>('/api/hall-da-fama') })
+export const useJogadoresPublicos = () =>
+  useQuery({ queryKey: chaves.jogadoresPublicos, queryFn: () => requisitar<JogadorLista[]>('/api/estatisticas/jogadores') })
+export const usePaginaJogador = (id: number) =>
+  useQuery({ queryKey: chaves.paginaJogador(id), queryFn: () => requisitar<PaginaJogador>(`/api/estatisticas/jogadores/${id}`) })
+export const usePaginaComandante = (chave: string) =>
+  useQuery({ queryKey: chaves.paginaComandante(chave), queryFn: () => requisitar<PaginaComandante>(`/api/estatisticas/comandantes/${encodeURIComponent(chave)}`) })
 export const useRegulamento = () =>
   useQuery({ queryKey: chaves.regulamento, queryFn: () => requisitar<Regulamento>('/api/regulamento') })
 export const useRodadasTemporada = (id: number) =>
@@ -120,23 +129,23 @@ export const useSalvarJogador = () =>
   useAlteracao(({ id, dados }: { id?: number; dados: JogadorEnvio }) =>
     id ? requisitar<Jogador>(`/api/jogadores/${id}`, { metodo: 'PUT', corpo: dados })
        : requisitar<Jogador>('/api/jogadores', { metodo: 'POST', corpo: dados }),
-  [chaves.jogadores, chaves.decks, ['perfil']])
+  [chaves.jogadores, chaves.decks, ['perfil'], ['estatisticas']])
 export const useExcluirJogador = () =>
-  useAlteracao((id: number) => requisitar<void>(`/api/jogadores/${id}`, { metodo: 'DELETE' }), [chaves.jogadores, chaves.decks, ['perfil']])
+  useAlteracao((id: number) => requisitar<void>(`/api/jogadores/${id}`, { metodo: 'DELETE' }), [chaves.jogadores, chaves.decks, ['perfil'], ['estatisticas']])
 
 // Decks
 export const useSalvarDeck = () =>
   useAlteracao(({ id, dados }: { id?: number; dados: DeckEnvio }) =>
     id ? requisitar<Deck>(`/api/decks/${id}`, { metodo: 'PUT', corpo: dados })
        : requisitar<Deck>('/api/decks', { metodo: 'POST', corpo: dados }),
-  [chaves.decks, chaves.jogadores, ['estatisticas-comandantes'], ['perfil']])
+  [chaves.decks, chaves.jogadores, ['estatisticas-comandantes'], ['perfil'], ['estatisticas']])
 export const useRevisarDeck = () =>
   useAlteracao(({ id, situacao, observacao }: { id: number; situacao: SituacaoDeck; observacao: string | null }) =>
     requisitar<Deck>(`/api/decks/${id}/revisao`, { metodo: 'PATCH', corpo: { situacao, observacao } }),
   [chaves.decks, ['rodadas'], ['perfil']])
 export const useExcluirDeck = () =>
   useAlteracao((id: number) => requisitar<void>(`/api/decks/${id}`, { metodo: 'DELETE' }),
-    [chaves.decks, chaves.jogadores, ['estatisticas-comandantes'], ['perfil']])
+    [chaves.decks, chaves.jogadores, ['estatisticas-comandantes'], ['perfil'], ['estatisticas']])
 
 // Temporadas
 export const useSalvarTemporada = () =>
@@ -174,7 +183,7 @@ export const useExcluirTemporada = () =>
   useAlteracao((id: number) => requisitar<void>(`/api/temporadas/${id}`, { metodo: 'DELETE' }), [chaves.temporadas])
 
 // Rodadas — toda alteração invalida temporadas (ranking, histórico, contagens), rodadas, etapas, estatísticas e perfis.
-const chavesRodada = [chaves.temporadas, ['rodadas'], ['etapas'], ['estatisticas-comandantes'], ['perfil']] as const
+const chavesRodada = [chaves.temporadas, ['rodadas'], ['etapas'], ['estatisticas-comandantes'], ['perfil'], ['estatisticas'], ['hall-da-fama']] as const
 /** Nova rodada: pela data (cria a etapa se for um dia novo; data passada = retroativa) ou numa etapa existente (idEtapa). */
 export const useCriarRodada = () =>
   useAlteracao(({ idTemporada, data, duracaoMinutos, idEtapa }: { idTemporada: number; data: string | null; duracaoMinutos: number | null; idEtapa?: number | null }) =>
@@ -201,9 +210,12 @@ export const useSortearRodada = () =>
 export const useIniciarRodada = () =>
   useAlteracao(({ idRodada, duracaoMinutos }: { idRodada: number; duracaoMinutos: number }) =>
     requisitar<Rodada>(`/api/rodadas/${idRodada}/iniciar`, { metodo: 'POST', corpo: { duracaoMinutos } }), chavesRodada)
+/** Resultado da mesa. Empate com idsParticipacoesEmpatadas = empate parcial (só eles empatam; os outros perdem). */
 export const useRegistrarResultadoMesa = () =>
-  useAlteracao(({ idMesa, resultado, idParticipacaoVencedora }: { idMesa: number; resultado: ResultadoMesa; idParticipacaoVencedora: number | null }) =>
-    requisitar<Rodada>(`/api/mesas/${idMesa}/resultado`, { metodo: 'PUT', corpo: { resultado, idParticipacaoVencedora } }), chavesRodada)
+  useAlteracao(({ idMesa, resultado, idParticipacaoVencedora, idsParticipacoesEmpatadas }: {
+    idMesa: number; resultado: ResultadoMesa; idParticipacaoVencedora: number | null; idsParticipacoesEmpatadas?: number[]
+  }) =>
+    requisitar<Rodada>(`/api/mesas/${idMesa}/resultado`, { metodo: 'PUT', corpo: { resultado, idParticipacaoVencedora, idsParticipacoesEmpatadas: idsParticipacoesEmpatadas ?? null } }), chavesRodada)
 export const useEncerrarRodada = () =>
   useAlteracao((idRodada: number) => requisitar<Rodada>(`/api/rodadas/${idRodada}/encerrar`, { metodo: 'POST' }), chavesRodada)
 export const useExcluirRodada = () =>
