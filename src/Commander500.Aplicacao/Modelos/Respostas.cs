@@ -80,7 +80,8 @@ public record ParticipacaoResposta(
     int Id, int IdJogador, string NomeJogador, string? Apelido,
     int IdDeck, string NomeDeck, SituacaoDeck SituacaoDeck, string Comandantes, string? UrlArteComandante, bool Bye);
 
-public record CadeiraResposta(int Numero, ParticipacaoResposta Participacao);
+/// <param name="Empatou">Ficou no empate da mesa (todos, num empate geral; só os marcados, num empate parcial).</param>
+public record CadeiraResposta(int Numero, ParticipacaoResposta Participacao, bool Empatou);
 
 public record MesaResposta(
     int Id, int Numero, ResultadoMesa Resultado, int? IdParticipacaoVencedora,
@@ -118,3 +119,55 @@ public record LinhaHallDaFamaResposta(int Posicao, int IdJogador, string NomeJog
 public record TemporadaHallDaFamaResposta(
     int Id, string Nome, DateOnly DataInicio, DateOnly? DataFim, ModoPontuacao ModoPontuacao,
     string? UrlFoto, string? LegendaFoto, IReadOnlyList<LinhaHallDaFamaResposta> Ranking);
+
+// ----- Páginas do jogador e do comandante
+/// <param name="PercentualMes">Vitórias ÷ partidas do mês (0 a 1).</param>
+/// <param name="PercentualAcumulado">Vitórias ÷ partidas até o mês (0 a 1).</param>
+public record PontoMensalResposta(string Mes, int Partidas, int Vitorias, int Empates, int Derrotas, double PercentualMes, double PercentualAcumulado);
+
+/// <summary>Linha da lista pública de jogadores.</summary>
+/// <param name="Titulos">Temporadas encerradas em que terminou em 1º.</param>
+/// <param name="ComandantesPrincipais">Comandantes do deck que ele mais jogou (para a arte).</param>
+public record JogadorListaResposta(
+    int Id, string Nome, string? Apelido, bool Ativo, int Temporadas, int Partidas, int Vitorias, int Empates,
+    double? PercentualVitoria, int Titulos, int EtapasVencidas, IReadOnlyList<ComandanteResposta> ComandantesPrincipais);
+
+public record TemporadaDoJogadorResposta(int IdTemporada, string Nome, bool Ativa, int? Posicao, int Pontos, int Partidas, int Vitorias, bool Campeao);
+
+/// <param name="Situacao">Revisão da lista pelo lojista (aprovada, pendente ou reprovada). A observação da revisão não vai para a página pública.</param>
+public record DeckDoJogadorResposta(
+    int Id, string Nome, string? UrlLista, SituacaoDeck Situacao, string Chave, IReadOnlyList<ComandanteResposta> Comandantes,
+    int Partidas, int Vitorias, int Empates, double? PercentualVitoria);
+
+public record ConfrontoResposta(int IdJogador, string Nome, int Mesas, int VitoriasDoJogador, int VitoriasDoAdversario);
+
+/// <summary>Página completa do jogador.</summary>
+/// <param name="IdMelhorDeck">Maior % de vitória com 3+ partidas (ou o de mais vitórias).</param>
+/// <param name="Nemesis">Quem mais venceu mesas com ele junto.</param>
+/// <param name="VitimaFavorita">De quem ele mais venceu.</param>
+public record PaginaJogadorResposta(
+    int Id, string Nome, string? Apelido, bool Ativo, DateTime DataCadastro,
+    EstatisticasJogadorResposta Geral, int Titulos, IReadOnlyList<TemporadaDoJogadorResposta> Temporadas,
+    IReadOnlyList<ReferenciaEtapaResposta> EtapasVencidas, IReadOnlyList<DeckDoJogadorResposta> Decks, int? IdMelhorDeck,
+    IReadOnlyList<PontoMensalResposta> Evolucao, ConfrontoResposta? Nemesis, ConfrontoResposta? VitimaFavorita,
+    IReadOnlyList<ConfrontoResposta> Confrontos);
+
+/// <summary>Título de temporada conquistado com o comandante (o campeão usou mais esse deck na temporada).</summary>
+public record TituloComandanteResposta(int IdTemporada, string NomeTemporada, int IdJogador, string NomeJogador);
+
+/// <summary>Lista (deck) cadastrada com o comandante, de qualquer jogador.</summary>
+public record ListaComandanteResposta(
+    int IdDeck, string NomeDeck, string? UrlLista, int IdJogador, string NomeJogador,
+    int Partidas, int Vitorias, int Empates, double? PercentualVitoria);
+
+public record TemporadaDoComandanteResposta(int IdTemporada, string Nome, int Partidas, int Vitorias, double? PercentualVitoria);
+
+/// <summary>Página do comandante (ou da dupla de parceiros/background).</summary>
+/// <param name="Chave">Ids dos comandantes em ordem, ex.: "12-34" (endereço da página).</param>
+/// <param name="EtapasVencidas">Etapas concluídas em que um jogador com esse deck terminou em 1º.</param>
+public record PaginaComandanteResposta(
+    string Chave, string Nome, IReadOnlyList<ComandanteResposta> Comandantes, string? IdentidadeCor,
+    int Partidas, int Vitorias, int Empates, int Derrotas, double? PercentualVitoria, int Jogadores, int JogadoresComVitoria,
+    IReadOnlyList<TituloComandanteResposta> Titulos, int EtapasVencidas,
+    IReadOnlyList<PontoMensalResposta> Evolucao, IReadOnlyList<ListaComandanteResposta> Listas,
+    IReadOnlyList<TemporadaDoComandanteResposta> Temporadas);

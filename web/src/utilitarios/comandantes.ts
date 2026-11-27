@@ -32,3 +32,24 @@ export function identidadeCombinada(comandantes: Pick<Comandante, 'identidadeCor
   const todas = comandantes.map((c) => c.identidadeCor ?? '').join('')
   return 'WUBRG'.split('').filter((letra) => todas.includes(letra)).join('')
 }
+
+/** "12-34": ids dos comandantes em ordem (endereço da página do comandante; dupla de parceiros = uma chave). */
+export function chaveComandantes(comandantes: Pick<Comandante, 'id'>[]): string {
+  return comandantes.map((c) => c.id).sort((a, b) => a - b).join('-')
+}
+
+/** Cores do filtro: W U B R G e C (incolor). */
+export type CorFiltro = 'W' | 'U' | 'B' | 'R' | 'G' | 'C'
+
+/**
+ * Filtro "exatamente essas cores": a identidade do comandante (ou dupla) tem que ser igual às cores marcadas.
+ * Nada marcado = todos. "C" sozinho = só incolores. Identidade desconhecida não entra quando há filtro.
+ */
+export function temExatamenteAsCores(comandantes: Pick<Comandante, 'identidadeCor'>[], cores: CorFiltro[]): boolean {
+  if (cores.length === 0) return true
+  const identidade = identidadeCombinada(comandantes)
+  if (identidade == null) return false
+  const marcadas = cores.filter((c) => c !== 'C').join('')
+  const ordenadas = 'WUBRG'.split('').filter((letra) => marcadas.includes(letra)).join('')
+  return identidade === ordenadas
+}

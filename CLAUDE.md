@@ -32,12 +32,13 @@ src/Commander500.Dominio/          não depende de nada
                                    SorteadorMesas, CalculadoraRanking (soma das rodadas), CalculadoraRankingEtapa,
                                    CalculadoraRankingTemporada (escolhe o modo; colocação + final), CalculadoraEstatisticasComandante,
                                    RegrasEtapa (etapas por data, mesa final), RegrasTemporada, RegrasAdministrador, RegrasFoto, RegrasLoja,
-                                   RegrasHallDaFama, GeradorAleatorio
+                                   RegrasHallDaFama, CalculadoraDesempenho (evolução mensal, nêmesis, desempenho por deck),
+                                   GeradorAleatorio
   Comum/                           Excecoes (RegraNegocio, DadosInvalidos, NaoEncontrado, ServicoIndisponivel), NomeComandante, FusoLoja
 src/Commander500.Aplicacao/        casos de uso (serviços de aplicação, sem MediatR)
   Servicos/                        ServicoTemporada, ServicoRodada, ServicoJogador, ServicoDeck, ServicoComandante,
                                    ServicoEstatisticas, ServicoAutenticacao, ServicoAdministrador, ServicoRegulamento,
-                                   ServicoFotos, ServicoConfiguracaoLoja, ServicoHallDaFama
+                                   ServicoFotos, ServicoConfiguracaoLoja, ServicoHallDaFama, ServicoPaginas (jogadores e comandantes)
   Modelos/                         Envios.cs (o que o site manda) e Respostas.cs (o que a Api devolve)
   Interfaces/                      IContextoBanco, IClienteScryfall, IServicoSenha, IGeradorToken, IArmazenamentoFotos (implementados na Infraestrutura)
   Comum/                           Mapeamento (entidade → resposta), ConsultasRodada (Includes)
@@ -54,12 +55,14 @@ web/                               React 19 + Vite + TS + Tailwind v4, mobile-fi
   src/componentes/                 DesenhoMesa (mesa retangular), Cronometro, QuadroRodada, Layout (logo + tema), ArteComandante,
                                    RankingComandantes, SeletorComandante (busca Scryfall), JanelaDeck, JanelaPerfilJogador,
                                    MontagemMesas (mesas à mão + quem começa), EditorRegulamento (TipTap), Fotos (JanelaFoto, FotoDestaque),
-                                   FundoAnimado (brasas e símbolos de mana), comum.tsx
+                                   FundoAnimado (brasas e símbolos de mana), GraficoEvolucao (taxa de vitória por mês),
+                                   Paginacao, FiltroCores, Numeros, comum.tsx
   src/paginas/publico/             PaginaInicial (banner da temporada + próxima etapa), PaginaTemporada (ranking/etapas/comandantes),
-                                   PaginaComandantes, PaginasAoVivo (Ao vivo + Rodada), PaginaRegras, PaginaHallDaFama
+                                   PaginaComandantes, PaginasAoVivo (Ao vivo + Rodada), PaginaRegras, PaginaHallDaFama,
+                                   PaginaListaJogadores (/jogadores), PaginaJogador (/jogadores/:id), PaginaComandante (/comandantes/:chave)
   src/paginas/admin/               PaginaLogin, PaginaEtapasRodadas, PaginaConducaoRodada, PaginaJogadores, PaginaDecks,
                                    PaginaTemporadas (pontuação, próxima etapa, mesa final), PaginaEditarRegras, PaginaAdministradores, PaginaConfiguracoes
-  src/utilitarios/                 formatacao, relogio, tema, comandantes, fotos (reduz a foto antes de enviar)
+  src/utilitarios/                 formatacao, relogio, tema, comandantes, fotos (reduz a foto antes de enviar), paginacao (usePaginacao)
 docker-compose.yml                 Postgres local (serviço "banco") + perfil "api" opcional
 src/Dockerfile                     imagem da Api (contexto = pasta src/; usada pela Vercel, docker-compose e Render)
 scripts/dev.ps1, dev.sh            sobe banco + Api (que abre o site) com um comando (guia completo no README.md)
@@ -157,6 +160,9 @@ A porta 5080 também é usada pela Gestão Rastreio Wiki (outro projeto do Pedro
 - **Campeão da temporada** = 1º do ranking de uma temporada encerrada (inativa). Campeão da etapa = posição 1
   (empatados dividem) de uma etapa com todas as rodadas encerradas.
 - Mini perfil do jogador é público (sem a observação de revisão dos decks); no admin mostra a situação e permite cadastrar deck.
+- **Lista do deck na página do jogador** (27/11/2026): cada card mostra "Sem lista" ou um selo que é o link da lista, com a
+  revisão do lojista (Lista aprovada / pendente / recusada, cores de `estiloSituacaoDeck`). A situação é pública; a
+  observação da revisão continua só no admin.
 - Tema claro/escuro: as escalas `zinc` (azul-marinho) e `amber` (laranja da logo) do Tailwind são redefinidas em
   `web/src/index.css` e invertidas em `html[data-tema="claro"]`; use essas escalas nos componentes para funcionar
   nos dois temas. Cores fixas da logo: `brand-red`, `brand-orange`, `brand-navy`.
@@ -198,5 +204,13 @@ A porta 5080 também é usada pela Gestão Rastreio Wiki (outro projeto do Pedro
   O deck de cada jogador é o que ele mais usou na temporada (empate: o mais recente).
 - **Grupo de WhatsApp**: link em Admin → Configurações (só aceita https de chat.whatsapp.com / wa.me); aparece no menu e no rodapé.
 - **Correções em rodada encerrada** (resultado e deck do jogador) só enquanto a temporada estiver aberta.
+- **Empate parcial** (27/11/2026): `Cadeira.Empatou` marca quem ficou no empate (ex.: 2 sobreviventes de 4); os outros da
+  mesa contam como derrota (pontos de derrota/presença). Empate sem ninguém marcado = entre todos (`Mesa.Empatou(id)`).
+- **Páginas do jogador e do comandante**: `/jogadores/:id` e `/comandantes/:chave` (chave = ids dos comandantes em ordem,
+  "12-34" para dupla). Título do comandante = temporada encerrada em que o campeão jogou mais com ele. Melhor deck = maior
+  % com 3+ partidas. Nêmesis = quem mais venceu mesas com o jogador junto. No ranking/mesas o nome abre a janela do jogador,
+  com "Ver perfil completo" abrindo a página em outra aba.
+- **Filtro de cor dos comandantes** = exatamente as cores marcadas (C = incolor). **Paginação** no navegador: 50 por página
+  (100/250/500) em comandantes, jogadores, ranking da temporada, Hall da Fama e admin (jogadores e decks).
 - Arquitetura limpa com **serviços de aplicação** (sem MediatR) e banco **PostgreSQL** com nomes de tabela = nome do DbSet
   (sem `TB_`). Decisão do Pedro em 18/11/2026; as migrations recomeçaram do zero (`Inicial`).

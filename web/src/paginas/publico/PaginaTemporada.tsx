@@ -6,6 +6,8 @@ import type { Etapa, ModoPontuacao, Rodada, Temporada } from '../../api/tipos'
 import { Abas, CabecalhoPagina, CaixaErro, Carregando, LegendaSiglas, SeloSituacaoRodada, Vazio } from '../../componentes/comum'
 import { FotoDestaque } from '../../componentes/Fotos'
 import { JanelaPerfilJogador } from '../../componentes/JanelaPerfilJogador'
+import { Paginacao } from '../../componentes/Paginacao'
+import { usePaginacao } from '../../utilitarios/paginacao'
 import { CartoesArteComandante, ListaComandantes } from '../../componentes/RankingComandantes'
 import { rotuloOrdemComandantes, type OrdemComandantes } from '../../utilitarios/comandantes'
 import { formatarData, formatarPercentual, rotuloCriterioDesempate } from '../../utilitarios/formatacao'
@@ -67,6 +69,7 @@ function BotaoJogador({ id, nome, aoAbrir }: { id: number; nome: string; aoAbrir
 
 function AbaRanking({ temporada, aoAbrirJogador }: { temporada: Temporada; aoAbrirJogador: (id: number) => void }) {
   const ranking = useRanking(temporada.id)
+  const { itensDaPagina, estado } = usePaginacao(ranking.data ?? [], String(temporada.id))
   if (ranking.isPending) return <Carregando />
   if (ranking.error) return <CaixaErro erro={ranking.error} aoTentarDeNovo={() => ranking.refetch()} />
   const c = temporada.configuracao
@@ -96,7 +99,7 @@ function AbaRanking({ temporada, aoAbrirJogador }: { temporada: Temporada; aoAbr
               </tr>
             </thead>
             <tbody>
-              {ranking.data.map((l) => (
+              {itensDaPagina.map((l) => (
                 <tr key={l.idJogador} className="border-b border-zinc-800/60 last:border-0">
                   <td className="px-2 py-2.5 sm:px-3"><SeloPosicao posicao={l.posicao} empatado={l.empatado} /></td>
                   <td className="max-w-[7.5rem] px-1.5 py-2.5 sm:max-w-none">
@@ -117,6 +120,7 @@ function AbaRanking({ temporada, aoAbrirJogador }: { temporada: Temporada; aoAbr
           </table>
         </div>
       )}
+      <Paginacao estado={estado} rotulo="jogadores" />
       {ranking.data.length > 0 && (
         <LegendaSiglas className="mt-2" itens={[
           ['#', 'posição (número repetido = empatados)'],
@@ -199,22 +203,30 @@ function CartaoEtapa({ etapa, modo, abertaInicialmente, aoAbrirJogador }: {
 
   return (
     <div className="cartao">
-      <button className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 p-4 text-left" onClick={() => definirAberta(!aberta)} aria-expanded={aberta}>
-        <span className="flex items-center gap-1.5 font-display text-lg font-bold text-zinc-100">
-          {etapa.final ? <><Crown className="size-4 text-amber-400" aria-hidden />Mesa final</> : `Etapa ${etapa.numero}`}
+      {/* Linha 1: título, data e ícones (que nunca encolhem). Linha 2: líderes — no máximo 3 nomes + "e mais N",
+          para muitos empatados em 1º não espremerem o cabeçalho no celular. */}
+      <button className="flex w-full flex-col gap-1 p-4 text-left" onClick={() => definirAberta(!aberta)} aria-expanded={aberta}>
+        <span className="flex w-full flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="flex items-center gap-1.5 font-display text-lg font-bold text-zinc-100">
+            {etapa.final ? <><Crown className="size-4 shrink-0 text-amber-400" aria-hidden />Mesa final</> : `Etapa ${etapa.numero}`}
+          </span>
+          <span className="text-sm text-zinc-400">{formatarData(etapa.data)} · {etapa.quantidadeRodadas} rodada{etapa.quantidadeRodadas === 1 ? '' : 's'}</span>
+          <span className="ml-auto flex shrink-0 items-center gap-2">
+            {etapa.urlFoto && <Camera className="size-4 shrink-0 text-zinc-400" aria-label="Tem foto do top" />}
+            {!etapa.concluida && <span className="whitespace-nowrap rounded-full bg-emerald-950 px-2 py-0.5 text-xs text-emerald-300">em andamento</span>}
+            <ChevronDown className={`size-4 shrink-0 text-zinc-500 transition ${aberta ? 'rotate-180' : ''}`} aria-hidden />
+          </span>
         </span>
-        <span className="text-sm text-zinc-400">{formatarData(etapa.data)} · {etapa.quantidadeRodadas} rodada{etapa.quantidadeRodadas === 1 ? '' : 's'}</span>
-        <span className="ml-auto flex items-center gap-2">
-          {etapa.lideres.length > 0 && (
-            <span className="inline-flex items-center gap-1 text-sm text-amber-300">
-              <Medal className="size-4" aria-hidden />
-              {etapa.concluida ? '' : 'Líder: '}{etapa.lideres.map((l) => l.nome).join(', ')}
+        {etapa.lideres.length > 0 && (
+          <span className="flex items-start gap-1.5 text-sm text-amber-300">
+            <Medal className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <span className="min-w-0">
+              {etapa.concluida ? (etapa.lideres.length > 1 ? 'Empatados em 1º: ' : '') : 'Líder: '}
+              {etapa.lideres.slice(0, 3).map((l) => l.nome).join(', ')}
+              {etapa.lideres.length > 3 && <span className="text-zinc-400"> e mais {etapa.lideres.length - 3}</span>}
             </span>
-          )}
-          {etapa.urlFoto && <Camera className="size-4 text-zinc-400" aria-label="Tem foto do top" />}
-          {!etapa.concluida && <span className="rounded-full bg-emerald-950 px-2 py-0.5 text-xs text-emerald-300">em andamento</span>}
-          <ChevronDown className={`size-4 text-zinc-500 transition ${aberta ? 'rotate-180' : ''}`} aria-hidden />
-        </span>
+          </span>
+        )}
       </button>
       {aberta && (
         <div className="space-y-4 border-t border-zinc-800 p-4">
@@ -293,15 +305,21 @@ function ResumoRodada({ rodada, aoAbrirJogador }: { rodada: Rodada; aoAbrirJogad
             <div key={mesa.id}>
               <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
                 Mesa {mesa.numero}
-                {mesa.resultado === 'Empate' && <span className="inline-flex items-center gap-1 normal-case text-zinc-300"><Handshake className="size-3.5" aria-hidden />empate</span>}
+                {mesa.resultado === 'Empate' && (
+                  <span className="inline-flex items-center gap-1 normal-case text-zinc-300">
+                    <Handshake className="size-3.5" aria-hidden />
+                    {mesa.cadeiras.every((c) => c.empatou) ? 'empate' : `empate entre ${mesa.cadeiras.filter((c) => c.empatou).length}`}
+                  </span>
+                )}
                 {mesa.resultado === 'Pendente' && <span className="normal-case text-zinc-500">sem resultado</span>}
               </div>
               <ul className="grid gap-1 sm:grid-cols-2">
                 {mesa.cadeiras.map((cadeira) => {
                   const venceu = mesa.resultado === 'Vitoria' && mesa.idParticipacaoVencedora === cadeira.participacao.id
+                  const empatouParcial = cadeira.empatou && !mesa.cadeiras.every((c) => c.empatou)
                   return (
                     // Nome do jogador em cima e comandante embaixo, quebrando linha: nome de comandante longo não estoura no celular.
-                    <li key={cadeira.numero} className={`flex min-w-0 items-start gap-2 rounded-lg px-2 py-1.5 text-sm ${venceu ? 'bg-amber-500/15' : 'bg-zinc-900'}`}>
+                    <li key={cadeira.numero} className={`flex min-w-0 items-start gap-2 rounded-lg px-2 py-1.5 text-sm ${venceu ? 'bg-amber-500/15' : empatouParcial ? 'bg-sky-500/10' : 'bg-zinc-900'}`}>
                       <span className="w-4 shrink-0 pt-0.5 text-xs text-zinc-500">{cadeira.numero}</span>
                       <span className="min-w-0 flex-1">
                         <button type="button" onClick={() => aoAbrirJogador(cadeira.participacao.idJogador)} className="text-left font-medium break-words hover:text-amber-300 hover:underline">
@@ -310,6 +328,7 @@ function ResumoRodada({ rodada, aoAbrirJogador }: { rodada: Rodada; aoAbrirJogad
                         <span className="block text-xs leading-snug text-zinc-500 break-words">{cadeira.participacao.comandantes}</span>
                       </span>
                       {venceu && <Crown className="size-4 shrink-0 text-amber-400" aria-label="Vencedor" />}
+                      {empatouParcial && <Handshake className="size-4 shrink-0 text-sky-300" aria-label="Empatou" />}
                     </li>
                   )
                 })}

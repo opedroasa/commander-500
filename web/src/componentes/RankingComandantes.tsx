@@ -1,5 +1,6 @@
+import { Link } from 'react-router'
 import type { EstatisticaComandante } from '../api/tipos'
-import { identidadeCombinada, ordenarComandantes, type OrdemComandantes } from '../utilitarios/comandantes'
+import { chaveComandantes, identidadeCombinada, ordenarComandantes, type OrdemComandantes } from '../utilitarios/comandantes'
 import { formatarPercentual } from '../utilitarios/formatacao'
 import { ArteComandante, CoresMana } from './ArteComandante'
 
@@ -13,6 +14,8 @@ export function CartoesArteComandante({ linhas, ordem = 'jogados', limite = 4 }:
     <ol className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {primeiros.map((linha, indice) => (
         <li key={linha.nome} className="group relative overflow-hidden rounded-2xl border border-zinc-800 shadow-lg">
+          {/* o cartão inteiro leva para a página do comandante */}
+          <Link to={`/comandantes/${chaveComandantes(linha.comandantes)}`} className="absolute inset-0 z-10" aria-label={`Ver ${linha.nome}`} />
           <ArteComandante comandantes={linha.comandantes} className="aspect-[4/3] w-full transition duration-500 group-hover:scale-105" arredondamento="rounded-none" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
           <span className="absolute left-2 top-2 flex size-7 items-center justify-center rounded-full bg-black/60 text-sm font-bold text-white ring-1 ring-white/20">
@@ -23,7 +26,9 @@ export function CartoesArteComandante({ linhas, ordem = 'jogados', limite = 4 }:
             <div className="mt-0.5 text-xs text-white/80">
               {ordem === 'decks'
                 ? plural(linha.decks, 'deck', 'decks')
-                : `${plural(linha.partidas, 'partida', 'partidas')} · ${plural(linha.jogadores, 'jogador', 'jogadores')}`}
+                : ordem === 'percentual'
+                  ? `${formatarPercentual(linha.percentualVitoria)} de vitória · ${plural(linha.partidas, 'partida', 'partidas')}`
+                  : `${plural(linha.partidas, 'partida', 'partidas')} · ${plural(linha.jogadores, 'jogador', 'jogadores')}`}
             </div>
           </div>
         </li>
@@ -33,13 +38,17 @@ export function CartoesArteComandante({ linhas, ordem = 'jogados', limite = 4 }:
 }
 
 /** Lista numerada com miniatura, como "Top comandantes". */
-export function ListaComandantes({ linhas, ordem, limite, minimoPartidas }: {
+export function ListaComandantes({ linhas, ordem, limite, minimoPartidas, jaOrdenada = false, deslocamento = 0 }: {
   linhas: EstatisticaComandante[]
   ordem: OrdemComandantes
   limite?: number
   minimoPartidas?: number
+  /** a página já ordenou, filtrou e paginou (não ordena de novo) */
+  jaOrdenada?: boolean
+  /** posição do primeiro item (paginação: a página 2 começa no 51) */
+  deslocamento?: number
 }) {
-  const lista = ordenarComandantes(linhas, ordem).slice(0, limite)
+  const lista = (jaOrdenada ? linhas : ordenarComandantes(linhas, ordem)).slice(0, limite)
   if (lista.length === 0) {
     return (
       <p className="rounded-xl border border-dashed border-zinc-800 p-6 text-center text-sm text-zinc-400">
@@ -52,12 +61,17 @@ export function ListaComandantes({ linhas, ordem, limite, minimoPartidas }: {
       {lista.map((linha, indice) => {
         const valorPrincipal = ordem === 'jogados' ? linha.partidas : ordem === 'vitorias' ? linha.vitorias
           : ordem === 'decks' ? linha.decks : formatarPercentual(linha.percentualVitoria)
+        const endereco = `/comandantes/${chaveComandantes(linha.comandantes)}`
         return (
           <li key={linha.nome} className="flex items-center gap-3 py-2.5">
-            <span className="w-5 shrink-0 text-center text-sm font-semibold text-zinc-500">{indice + 1}</span>
-            <ArteComandante comandantes={linha.comandantes} className="h-10 w-14 shrink-0" arredondamento="rounded-md" />
+            <span className="w-7 shrink-0 text-center text-sm font-semibold text-zinc-500">{deslocamento + indice + 1}</span>
+            {/* A miniatura também abre a página; no mouse ela cresce e ganha borda, para parecer um botão. */}
+            <Link to={endereco} aria-label={`Ver ${linha.nome}`} tabIndex={-1}
+              className="group/arte relative z-0 shrink-0 rounded-md transition duration-200 hover:z-10 hover:scale-125 hover:shadow-xl hover:ring-2 hover:ring-amber-400/80 focus-visible:ring-2 focus-visible:ring-amber-400">
+              <ArteComandante comandantes={linha.comandantes} className="h-10 w-14" arredondamento="rounded-md" />
+            </Link>
             <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-semibold text-zinc-100">{linha.nome}</div>
+              <Link to={endereco} className="block truncate text-sm font-semibold text-zinc-100 hover:text-amber-300 hover:underline">{linha.nome}</Link>
               {/* No celular a linha de números quebra em vez de ser cortada com "…"; da tela média para cima, uma linha só. */}
               <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-zinc-400 sm:flex-nowrap">
                 <CoresMana identidadeCor={identidadeCombinada(linha.comandantes)} />

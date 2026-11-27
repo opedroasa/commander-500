@@ -195,8 +195,12 @@ public static class FluxoRodada
 
     /// <summary>Registra (ou corrige, depois de encerrada) o resultado de uma mesa.</summary>
     /// <param name="hoje">Data de hoje (fuso da loja). Rodadas de datas passadas aceitam resultado ainda sorteadas.</param>
+    /// <param name="idsEmpatados">
+    /// Empate parcial: participações que ficaram no empate (2 ou mais; ex.: os 2 que sobraram vivos). Vazio = empate entre todos.
+    /// Os outros da mesa contam como derrota.
+    /// </param>
     public static void RegistrarResultado(Rodada rodada, Mesa mesa, ResultadoMesa resultado, int? idParticipacaoVencedora,
-        DateTime agoraUtc, string? alteradaPor, DateOnly? hoje = null)
+        DateTime agoraUtc, string? alteradaPor, DateOnly? hoje = null, IReadOnlyCollection<int>? idsEmpatados = null)
     {
         if (rodada.Situacao == SituacaoRodada.Encerrada) GarantirTemporadaAberta(rodada, "corrigir o resultado");
         if (EhRetroativa(rodada, hoje))
@@ -212,8 +216,17 @@ public static class FluxoRodada
                 if (idParticipacaoVencedora is null || mesa.Cadeiras.All(c => IdParticipacaoDaCadeira(c) != idParticipacaoVencedora))
                     throw new RegraNegocioException("O vencedor precisa ser um jogador sentado nesta mesa.");
                 mesa.IdParticipacaoVencedora = idParticipacaoVencedora;
+                foreach (var cadeira in mesa.Cadeiras) cadeira.Empatou = false;
                 break;
             case ResultadoMesa.Empate:
+                var empatados = (idsEmpatados ?? []).Distinct().ToHashSet();
+                if (empatados.Any(id => mesa.Cadeiras.All(c => IdParticipacaoDaCadeira(c) != id)))
+                    throw new RegraNegocioException("Só jogadores sentados nesta mesa podem empatar.");
+                if (empatados.Count == 1)
+                    throw new DadosInvalidosException("Empate precisa de pelo menos 2 jogadores. Com 1 só, marque como vitória.");
+                // Todos marcados = empate geral (grava sem marcação, igual ao empate de antes).
+                var parcial = empatados.Count > 0 && empatados.Count < mesa.Cadeiras.Count;
+                foreach (var cadeira in mesa.Cadeiras) cadeira.Empatou = parcial && empatados.Contains(IdParticipacaoDaCadeira(cadeira));
                 mesa.IdParticipacaoVencedora = null;
                 mesa.ParticipacaoVencedora = null;
                 break;

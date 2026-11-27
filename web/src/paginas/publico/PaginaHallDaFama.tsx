@@ -7,6 +7,8 @@ import { ArteComandante } from '../../componentes/ArteComandante'
 import { CabecalhoPagina, CaixaErro, Carregando, LegendaSiglas, Vazio } from '../../componentes/comum'
 import { FotoDestaque, FundoDesfocado } from '../../componentes/Fotos'
 import { JanelaPerfilJogador } from '../../componentes/JanelaPerfilJogador'
+import { Paginacao } from '../../componentes/Paginacao'
+import { usePaginacao } from '../../utilitarios/paginacao'
 import { formatarData } from '../../utilitarios/formatacao'
 
 /** Cor da medalha do pódio (1º laranja da logo, 2º prata, 3º bronze). */
@@ -122,6 +124,7 @@ function RankingFinal({ temporada, temporadas, aoEscolher, aoAbrirJogador }: {
   aoEscolher: (id: number) => void
   aoAbrirJogador: (id: number) => void
 }) {
+  const { itensDaPagina, estado } = usePaginacao(temporada.ranking, String(temporada.id))
   return (
     <section id="ranking-final" className="scroll-mt-20 space-y-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -144,7 +147,7 @@ function RankingFinal({ temporada, temporadas, aoEscolher, aoAbrirJogador }: {
             </tr>
           </thead>
           <tbody>
-            {temporada.ranking.map((l) => (
+            {itensDaPagina.map((l) => (
               <tr key={l.idJogador} className="border-b border-zinc-800/60 last:border-0">
                 <td className="px-2 py-2 sm:px-3">
                   <span className={`inline-flex size-6 items-center justify-center rounded-full text-xs font-bold ${corPodio[l.posicao] ?? 'text-zinc-400'}`}
@@ -168,6 +171,7 @@ function RankingFinal({ temporada, temporadas, aoEscolher, aoAbrirJogador }: {
           </tbody>
         </table>
       </div>
+      <Paginacao estado={estado} rotulo="jogadores" />
       <LegendaSiglas itens={[
         ['#', 'posição final (número repetido = empatados)'],
         ['Deck', 'o deck que o jogador mais usou na temporada'],

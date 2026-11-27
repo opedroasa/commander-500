@@ -171,7 +171,7 @@ public class ServicoRodada(IContextoBanco banco, TimeProvider relogio, IGeradorA
 
         // O banco não deixa duas cadeiras com o mesmo número na mesa (índice único) e girar as cadeiras troca os números
         // entre si. Por isso, numa transação: apaga as cadeiras da mesa e grava de novo já na ordem nova.
-        var novas = mesa.Cadeiras.Select(c => new Cadeira { IdMesa = mesa.Id, IdParticipacao = c.IdParticipacao, Numero = c.Numero }).ToList();
+        var novas = mesa.Cadeiras.Select(c => new Cadeira { IdMesa = mesa.Id, IdParticipacao = c.IdParticipacao, Numero = c.Numero, Empatou = c.Empatou }).ToList();
         await banco.EmTransacaoAsync(async () =>
         {
             banco.Cadeiras.RemoveRange(mesa.Cadeiras.ToList());
@@ -210,7 +210,8 @@ public class ServicoRodada(IContextoBanco banco, TimeProvider relogio, IGeradorA
             ?? throw new NaoEncontradoException($"Mesa {idMesa} não encontrada.");
         var rodada = await Carregar(idRodada);
         var mesa = rodada.Mesas.Single(m => m.Id == idMesa);
-        FluxoRodada.RegistrarResultado(rodada, mesa, envio.Resultado, envio.IdParticipacaoVencedora, Agora, usuario, Hoje);
+        FluxoRodada.RegistrarResultado(rodada, mesa, envio.Resultado, envio.IdParticipacaoVencedora, Agora, usuario, Hoje,
+            envio.IdsParticipacoesEmpatadas);
         await banco.SalvarAsync();
         return await Recarregar(idRodada);
     }

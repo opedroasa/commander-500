@@ -186,6 +186,8 @@ export interface Cadeira {
   /** 1..4 (até 6 em mesa montada à mão); a cadeira 1 começa jogando */
   numero: number
   participacao: Participacao
+  /** ficou no empate da mesa (todos, num empate geral; só os marcados, num empate parcial) */
+  empatou: boolean
 }
 
 export interface Mesa {
@@ -335,6 +337,100 @@ export interface TemporadaHallDaFama {
   legendaFoto: string | null
   /** ranking final completo (o site destaca o top 3) */
   ranking: LinhaHallDaFama[]
+}
+
+// ---------- Páginas do jogador e do comandante
+export interface PontoMensal {
+  /** "out/26" */
+  mes: string
+  partidas: number
+  vitorias: number
+  empates: number
+  derrotas: number
+  /** 0 a 1 */
+  percentualMes: number
+  percentualAcumulado: number
+}
+
+export interface JogadorLista {
+  id: number
+  nome: string
+  apelido: string | null
+  ativo: boolean
+  temporadas: number
+  partidas: number
+  vitorias: number
+  empates: number
+  percentualVitoria: number | null
+  /** temporadas encerradas em 1º */
+  titulos: number
+  etapasVencidas: number
+  /** comandantes do deck que ele mais jogou */
+  comandantesPrincipais: Comandante[]
+}
+
+export interface Confronto {
+  idJogador: number
+  nome: string
+  mesas: number
+  vitoriasDoJogador: number
+  vitoriasDoAdversario: number
+}
+
+export interface DeckDoJogador {
+  id: number
+  nome: string
+  urlLista: string | null
+  /** revisão da lista pelo lojista */
+  situacao: SituacaoDeck
+  /** chave da página do comandante */
+  chave: string
+  comandantes: Comandante[]
+  partidas: number
+  vitorias: number
+  empates: number
+  percentualVitoria: number | null
+}
+
+export interface PaginaJogador {
+  id: number
+  nome: string
+  apelido: string | null
+  ativo: boolean
+  dataCadastro: string
+  geral: EstatisticasJogador
+  titulos: number
+  temporadas: { idTemporada: number; nome: string; ativa: boolean; posicao: number | null; pontos: number; partidas: number; vitorias: number; campeao: boolean }[]
+  etapasVencidas: { id: number; idTemporada: number; nomeTemporada: string; numero: number; data: string }[]
+  decks: DeckDoJogador[]
+  idMelhorDeck: number | null
+  evolucao: PontoMensal[]
+  /** quem mais venceu mesas com ele junto */
+  nemesis: Confronto | null
+  /** de quem ele mais venceu */
+  vitimaFavorita: Confronto | null
+  confrontos: Confronto[]
+}
+
+export interface PaginaComandante {
+  chave: string
+  nome: string
+  comandantes: Comandante[]
+  identidadeCor: string | null
+  partidas: number
+  vitorias: number
+  empates: number
+  derrotas: number
+  percentualVitoria: number | null
+  /** jogadores únicos que jogaram com ele (partidas) */
+  jogadores: number
+  /** jogadores únicos que venceram mesas com ele */
+  jogadoresComVitoria: number
+  titulos: { idTemporada: number; nomeTemporada: string; idJogador: number; nomeJogador: string }[]
+  etapasVencidas: number
+  evolucao: PontoMensal[]
+  listas: { idDeck: number; nomeDeck: string; urlLista: string | null; idJogador: number; nomeJogador: string; partidas: number; vitorias: number; empates: number; percentualVitoria: number | null }[]
+  temporadas: { idTemporada: number; nome: string; partidas: number; vitorias: number; percentualVitoria: number | null }[]
 }
 
 // ---------- Regulamento

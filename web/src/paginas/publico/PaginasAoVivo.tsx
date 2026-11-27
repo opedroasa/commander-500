@@ -55,7 +55,7 @@ export function PaginaAoVivo() {
 
   return (
     <>
-      <CabecalhoPagina titulo="Ao vivo" subtitulo="Mesas sorteadas e tempo da rodada. Atualiza sozinho." />
+      <CabecalhoPagina titulo="Ao vivo" subtitulo="Mesas sorteadas e tempo da rodada." />
       {rodadas.isPending && <Carregando />}
       {rodadas.error && <CaixaErro erro={rodadas.error} aoTentarDeNovo={() => rodadas.refetch()} />}
       {rodadas.data?.length === 0 && (

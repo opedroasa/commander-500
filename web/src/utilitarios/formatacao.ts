@@ -13,6 +13,13 @@ export const rotuloSituacaoDeck: Record<SituacaoDeck, string> = {
   Reprovado: 'Reprovado',
 }
 
+/** Cores da situação do deck (verde aprovado, laranja pendente, vermelho reprovado): selo do admin e selo da lista na página do jogador. */
+export const estiloSituacaoDeck: Record<SituacaoDeck, string> = {
+  Pendente: 'bg-amber-950 text-amber-300 ring-1 ring-amber-800/70',
+  Aprovado: 'bg-emerald-950 text-emerald-300 ring-1 ring-emerald-800/70',
+  Reprovado: 'bg-red-950 text-red-300 ring-1 ring-red-800/70',
+}
+
 export const rotuloCriterioDesempate: Record<CriterioDesempate, string> = {
   Vitorias: 'Mais vitórias',
   MenosPartidas: 'Menos partidas jogadas',

@@ -20,6 +20,9 @@ import { PaginaInicial } from './paginas/publico/PaginaInicial'
 import { PaginaAoVivo, PaginaRodada } from './paginas/publico/PaginasAoVivo'
 import { PaginaRegras } from './paginas/publico/PaginaRegras'
 import { PaginaHallDaFama } from './paginas/publico/PaginaHallDaFama'
+import { PaginaComandante } from './paginas/publico/PaginaComandante'
+import { PaginaJogador } from './paginas/publico/PaginaJogador'
+import { PaginaListaJogadores } from './paginas/publico/PaginaListaJogadores'
 import { PaginaConfiguracoes } from './paginas/admin/PaginaConfiguracoes'
 import { PaginaTemporada } from './paginas/publico/PaginaTemporada'
 
@@ -44,6 +47,9 @@ const rotas = createBrowserRouter([
           { path: '/', element: <PaginaInicial /> },
           { path: '/temporadas/:id', element: <PaginaTemporada /> },
           { path: '/comandantes', element: <PaginaComandantes /> },
+          { path: '/comandantes/:chave', element: <PaginaComandante /> },
+          { path: '/jogadores', element: <PaginaListaJogadores /> },
+          { path: '/jogadores/:id', element: <PaginaJogador /> },
           { path: '/ao-vivo', element: <PaginaAoVivo /> },
           { path: '/rodadas/:id', element: <PaginaRodada /> },
           { path: '/regras', element: <PaginaRegras /> },
