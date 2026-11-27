@@ -89,6 +89,13 @@ public class ServicoPaginas(IContextoBanco banco)
             .GroupBy(id => id).ToDictionary(g => g.Key, g => g.Count());
         var etapasVencidas = dados.EtapasConcluidas.SelectMany(e => e.Lideres)
             .GroupBy(id => id).ToDictionary(g => g.Key, g => g.Count());
+        var decksPorJogador = dados.Decks.Values.ToLookup(d => d.IdJogador);
+
+        // Arte do card: o deck que ele mais jogou; quem ainda não jogou usa o deck reserva (RegrasDeckDoJogador).
+        Deck? DeckDaArte(int idJogador) =>
+            deckPrincipal.TryGetValue(idJogador, out var idDeck) && dados.Decks.TryGetValue(idDeck, out var maisJogado)
+                ? maisJogado
+                : RegrasDeckDoJogador.DeckReserva(decksPorJogador[idJogador]);
 
         return dados.Jogadores
             .Where(j => j.Ativo || geral.ContainsKey(j.Id))
@@ -98,7 +105,7 @@ public class ServicoPaginas(IContextoBanco banco)
                 return new JogadorListaResposta(j.Id, j.Nome, j.Apelido, j.Ativo, temporadasDoJogador.GetValueOrDefault(j.Id),
                     linha?.Partidas ?? 0, linha?.Vitorias ?? 0, linha?.Empates ?? 0, linha?.PercentualVitoria,
                     titulos.GetValueOrDefault(j.Id), etapasVencidas.GetValueOrDefault(j.Id),
-                    ComandantesDo(deckPrincipal.TryGetValue(j.Id, out var idDeck) ? dados.Decks.GetValueOrDefault(idDeck) : null));
+                    ComandantesDo(DeckDaArte(j.Id)));
             })
             .OrderByDescending(j => j.Titulos).ThenByDescending(j => j.Vitorias).ThenBy(j => j.Nome, StringComparer.Create(PtBr, true))
             .ToList();
