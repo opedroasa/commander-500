@@ -160,6 +160,9 @@ A porta 5080 também é usada pela Gestão Rastreio Wiki (outro projeto do Pedro
 - **Campeão da temporada** = 1º do ranking de uma temporada encerrada (inativa). Campeão da etapa = posição 1
   (empatados dividem) de uma etapa com todas as rodadas encerradas.
 - Mini perfil do jogador é público (sem a observação de revisão dos decks); no admin mostra a situação e permite cadastrar deck.
+- **Lista do deck na página do jogador** (27/11/2026): cada card mostra "Sem lista" ou um selo que é o link da lista, com a
+  revisão do lojista (Lista aprovada / pendente / recusada, cores de `estiloSituacaoDeck`). A situação é pública; a
+  observação da revisão continua só no admin.
 - Tema claro/escuro: as escalas `zinc` (azul-marinho) e `amber` (laranja da logo) do Tailwind são redefinidas em
   `web/src/index.css` e invertidas em `html[data-tema="claro"]`; use essas escalas nos componentes para funcionar
   nos dois temas. Cores fixas da logo: `brand-red`, `brand-orange`, `brand-navy`.

@@ -381,6 +381,8 @@ export interface DeckDoJogador {
   id: number
   nome: string
   urlLista: string | null
+  /** revisão da lista pelo lojista */
+  situacao: SituacaoDeck
   /** chave da página do comandante */
   chave: string
   comandantes: Comandante[]

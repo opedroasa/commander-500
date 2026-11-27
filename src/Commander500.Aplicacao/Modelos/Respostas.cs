@@ -134,8 +134,9 @@ public record JogadorListaResposta(
 
 public record TemporadaDoJogadorResposta(int IdTemporada, string Nome, bool Ativa, int? Posicao, int Pontos, int Partidas, int Vitorias, bool Campeao);
 
+/// <param name="Situacao">Revisão da lista pelo lojista (aprovada, pendente ou reprovada). A observação da revisão não vai para a página pública.</param>
 public record DeckDoJogadorResposta(
-    int Id, string Nome, string? UrlLista, string Chave, IReadOnlyList<ComandanteResposta> Comandantes,
+    int Id, string Nome, string? UrlLista, SituacaoDeck Situacao, string Chave, IReadOnlyList<ComandanteResposta> Comandantes,
     int Partidas, int Vitorias, int Empates, double? PercentualVitoria);
 
 public record ConfrontoResposta(int IdJogador, string Nome, int Mesas, int VitoriasDoJogador, int VitoriasDoAdversario);

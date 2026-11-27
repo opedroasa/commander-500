@@ -134,7 +134,7 @@ public class ServicoPaginas(IContextoBanco banco)
             .Select(d =>
             {
                 var x = desempenho.GetValueOrDefault(d.Id);
-                return new DeckDoJogadorResposta(d.Id, d.Nome, d.UrlLista, dados.ChaveDoDeck(d.Id), ComandantesDo(d),
+                return new DeckDoJogadorResposta(d.Id, d.Nome, d.UrlLista, d.Situacao, dados.ChaveDoDeck(d.Id), ComandantesDo(d),
                     x?.Partidas ?? 0, x?.Vitorias ?? 0, x?.Empates ?? 0, x?.PercentualVitoria);
             })
             .OrderByDescending(d => d.Partidas).ThenBy(d => d.Nome).ToList();
