@@ -1,13 +1,13 @@
-import { ArrowLeft, Crown, ExternalLink, Medal, Skull, Swords, Trophy } from 'lucide-react'
+import { ArrowLeft, CircleCheck, CircleX, Clock, Crown, ExternalLink, Medal, Skull, Swords, Trophy, type LucideIcon } from 'lucide-react'
 import { Link, useParams } from 'react-router'
 import { usePaginaJogador } from '../../api/consultas'
-import type { Confronto } from '../../api/tipos'
+import type { Confronto, SituacaoDeck } from '../../api/tipos'
 import { ArteComandante, CoresMana } from '../../componentes/ArteComandante'
 import { CaixaErro, Carregando, LegendaSiglas, Vazio } from '../../componentes/comum'
 import { GraficoEvolucao } from '../../componentes/GraficoEvolucao'
 import { GradeNumeros, Numero } from '../../componentes/Numeros'
 import { identidadeCombinada } from '../../utilitarios/comandantes'
-import { formatarData, formatarPercentual, nomeComApelido } from '../../utilitarios/formatacao'
+import { estiloSituacaoDeck, formatarData, formatarPercentual, nomeComApelido } from '../../utilitarios/formatacao'
 
 /** Página completa do jogador: números, evolução mês a mês, temporadas, decks, rivalidades e etapas vencidas. */
 export function PaginaJogador() {
@@ -135,7 +135,7 @@ export function PaginaJogador() {
                   <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-400">
                     <CoresMana identidadeCor={identidadeCombinada(d.comandantes)} />
                     <span>{d.partidas} P · {d.vitorias} V · {formatarPercentual(d.percentualVitoria)}</span>
-                    {d.urlLista && <a href={d.urlLista} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-amber-300 hover:underline">Lista <ExternalLink className="size-3" aria-hidden /></a>}
+                    <SeloLista urlLista={d.urlLista} situacao={d.situacao} />
                   </div>
                 </div>
               </li>
@@ -183,5 +183,29 @@ function CartaoRival({ tipo, confronto }: { tipo: 'nemesis' | 'vitima'; confront
         </span>
       </span>
     </Link>
+  )
+}
+
+/** Texto e ícone da lista conforme a revisão do lojista. */
+const aparenciaLista: Record<SituacaoDeck, { rotulo: string; Icone: LucideIcon }> = {
+  Aprovado: { rotulo: 'Lista aprovada', Icone: CircleCheck },
+  Pendente: { rotulo: 'Lista pendente', Icone: Clock },
+  Reprovado: { rotulo: 'Lista recusada', Icone: CircleX },
+}
+
+/**
+ * Selo da lista do deck. Com lista: o selo inteiro é o link (abre em outra aba) e a cor mostra a revisão do lojista.
+ * Sem lista: só um "Sem lista" discreto.
+ */
+function SeloLista({ urlLista, situacao }: { urlLista: string | null; situacao: SituacaoDeck }) {
+  if (!urlLista) return <span className="text-zinc-500">Sem lista</span>
+  const { rotulo, Icone } = aparenciaLista[situacao]
+  return (
+    <a href={urlLista} target="_blank" rel="noreferrer noopener" title={`${rotulo}. Abrir a lista em outra aba`}
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium transition hover:brightness-125 ${estiloSituacaoDeck[situacao]}`}>
+      <Icone className="size-3" aria-hidden />
+      {rotulo}
+      <ExternalLink className="size-3 opacity-70" aria-hidden />
+    </a>
   )
 }

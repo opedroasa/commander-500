@@ -2,7 +2,7 @@
 import { AlertTriangle, Loader2, X } from 'lucide-react'
 import { useEffect, useRef, type ReactNode } from 'react'
 import type { SituacaoDeck, SituacaoRodada } from '../api/tipos'
-import { rotuloSituacaoDeck, rotuloSituacaoRodada } from '../utilitarios/formatacao'
+import { estiloSituacaoDeck, rotuloSituacaoDeck, rotuloSituacaoRodada } from '../utilitarios/formatacao'
 
 export function Carregando({ texto = 'Carregando…' }: { texto?: string }) {
   return (
@@ -65,11 +65,6 @@ export function SeloSituacaoRodada({ situacao }: { situacao: SituacaoRodada }) {
   )
 }
 
-const estiloSituacaoDeck: Record<SituacaoDeck, string> = {
-  Pendente: 'bg-amber-950 text-amber-300 ring-1 ring-amber-800/70',
-  Aprovado: 'bg-emerald-950 text-emerald-300 ring-1 ring-emerald-800/70',
-  Reprovado: 'bg-red-950 text-red-300 ring-1 ring-red-800/70',
-}
 
 export function SeloSituacaoDeck({ situacao }: { situacao: SituacaoDeck }) {
   return <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${estiloSituacaoDeck[situacao]}`}>{rotuloSituacaoDeck[situacao]}</span>
